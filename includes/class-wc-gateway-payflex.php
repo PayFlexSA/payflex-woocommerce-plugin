@@ -625,20 +625,20 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
     {
         global $woocommerce;
 
-        if(!payflex_checkout_widget_enabled())
-        {
-            if ($this->settings['testmode'] != 'production'): ?><?php esc_html_e('TEST MODE ENABLED', 'woo_payflex'); ?><?php
-            endif;
-            $arr = array(
-                'br' => array() ,
-                'p' => array()
-            );
-            if ($this->description)
-            {
-                echo wp_kses('<p>' . $this->description . '</p>', $arr);
-            }
-            return;
-        }
+        if(!payflex_checkout_widget_enabled()) return;
+
+        // if ($this->settings['testmode'] != 'production'): ?><?php esc_html_e('TEST MODE ENABLED', 'woo_payflex'); ?><?php
+        // endif;
+        // $arr = array(
+        //     'br' => array() ,
+        //     'p' => array()
+        // );
+        // if ($this->description)
+        // {
+        //     echo wp_kses('<p>' . $this->description . '</p>', $arr);
+        // }
+        // return;
+
 
         echo '<style>.elementor{max-width:100% !important}';
         echo 'html {
