@@ -434,17 +434,23 @@ function render_payflex_widget_block($attributes) {
 
 function payflex_enabled()
 {
-    if(!function_exists('is_user_logged_in')) return false;
-    
-    $payflex_settings = get_payflex_option();
+    // Check admin override
+    if(payflex_admin_only_enabled()) return true;
 
-    if(isset($payflex_settings['enabled']) AND $payflex_settings['enabled'] == 'yes')
-    {
-        # Check if the user is logged in and if the admin only setting is enabled
-        if(is_user_logged_in() AND current_user_can('administrator')) return true;
+    // Check if gateway is enabled
+    if(get_payflex_option('enabled') AND get_payflex_option('enabled') === 'yes') return true;
 
-        if(isset($payflex_settings['admin_only_enabled']) AND $payflex_settings['admin_only_enabled'] != 'yes') return true;
-    }
+    return false;
+}
+
+
+/**
+ * Check if admin only mode is enabled
+ * Admin only mode allows logged in admin users to view and use the gateway, even if the plugin is disabled for normal users
+ */
+function payflex_admin_only_enabled()
+{
+    if(get_payflex_option('admin_only_enabled') === 'yes') return true;
 
     return false;
 }
@@ -453,20 +459,17 @@ function payflex_product_widget_enabled()
 {
     if(payflex_enabled() == false) return false;
 
-    $payflex_settings = get_payflex_option();
-
-    if($payflex_settings['enable_product_widget'] == 'yes') return true;
+    if(get_payflex_option('enable_product_widget') === 'yes') return true;
 
     return false;
 }
 
 function payflex_checkout_widget_enabled()
 {
+
     if(payflex_enabled() == false) return false;
 
-    $payflex_settings = get_payflex_option();
-
-    if($payflex_settings['enable_checkout_widget'] == 'yes') return true;
+    if(get_payflex_option('enable_checkout_widget') === 'yes') return true;
 
     return false;
 }

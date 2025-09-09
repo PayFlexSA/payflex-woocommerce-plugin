@@ -3,7 +3,7 @@
 use Automattic\WooCommerce\Blocks\Payments\Integrations\AbstractPaymentMethodType;
 final class WC_Payflex_Blocks extends AbstractPaymentMethodType {
     private $gateway;
-    protected $name = 'payflex';// your payment gateway name
+    protected $name = 'payflex';
     public function initialize() {
         $this->settings = get_option( 'woocommerce_payflex_settings', [] );
         $this->gateway = new WC_Gateway_PartPay();

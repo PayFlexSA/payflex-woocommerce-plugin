@@ -178,6 +178,12 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
         ));
 
     }
+
+    public function is_available()
+    {
+        return payflex_enabled();
+    }
+
     public function getOrderUrl(){
         return $this->orderurl;
     }
