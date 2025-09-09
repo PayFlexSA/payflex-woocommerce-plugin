@@ -434,19 +434,21 @@ function render_payflex_widget_block($attributes) {
 
 function payflex_enabled()
 {
-    // Check admin override
-    if(payflex_admin_only_enabled()) return true;
-
     // Check if gateway is enabled
-    if(get_payflex_option('enabled') AND get_payflex_option('enabled') === 'yes') return true;
+    if(get_payflex_option('enabled') !== 'yes') return false;
 
-    return false;
+    // Check admin only mode
+    if(payflex_admin_only_enabled())
+    {
+        if(!current_user_can('manage_options')) return false;
+    }
+
+    return true;
 }
 
 
 /**
  * Check if admin only mode is enabled
- * Admin only mode allows logged in admin users to view and use the gateway, even if the plugin is disabled for normal users
  */
 function payflex_admin_only_enabled()
 {
