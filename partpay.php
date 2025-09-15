@@ -21,6 +21,9 @@ if (!function_exists('is_plugin_active') || !function_exists('is_plugin_active_f
 $woocommerce_active = is_plugin_active('woocommerce/woocommerce.php') || is_plugin_active_for_network('woocommerce/woocommerce.php');
 if (!$woocommerce_active) return;
 
+# We need to set a global variable for the product page widget, otherwise it won't work in some themes
+global $payflex_product_page_widget_displayed;
+$payflex_product_page_widget_displayed = false;
 
 /**
  * Gets a Payflex option from the database, if none is provided, it returns all options.
@@ -300,7 +303,11 @@ add_filter('cron_schedules', function ($schedules)
 // FUNCTION - Frontend show on single product page
 function widget_content()
 {
+
     if(payflex_product_widget_enabled() == false) return;
+
+    global $payflex_product_page_widget_displayed;
+    $payflex_product_page_widget_displayed = true;
 
     echo woo_payflex_frontend_widget();
 
@@ -315,9 +322,7 @@ if($wp_version >= 6.3){
 
 function widget_shortcode_content()
 {
-
     return woo_payflex_frontend_widget();
-
 }
 
 add_shortcode('payflex_widget', 'widget_shortcode_content');
@@ -325,7 +330,8 @@ add_shortcode('payflex_widget', 'widget_shortcode_content');
 
 function woo_payflex_frontend_widget($amount = false)
 {
-    global $product;
+    global $product, $payflex_product_page_widget_displayed;
+
     if(!$product) return;
 
     $payflex_settings = get_payflex_option();
@@ -379,7 +385,9 @@ function woo_payflex_frontend_widget($amount = false)
 
     $all_options = $amount_string.$widget_style.$theme.$pay_type;
     $all_div_options = $widget_style_div.$theme_div.$pay_type_div;
-    
+
+    $payflex_product_page_widget_displayed = true;
+
     if($merchant_reference){
         return '<div class="payflexCalculatorWidgetContainer" '.$all_div_options.'><script async src="https://widgets.payflex.co.za/'.$merchant_reference.'/payflex-widget-2.0.1.js?type=calculator'.$all_options.'" type="application/javascript"></script></div>';
     }
@@ -495,10 +503,10 @@ function payflex_environment()
 // Variation price update
 add_action( 'woocommerce_after_single_product', 'payflex_update_price_on_variation' );
 function payflex_update_price_on_variation() {
-    global $product;
-
+    global $product , $payflex_product_page_widget_displayed;
+    
     # return if widget is disabled
-    if(payflex_product_widget_enabled() == false) return;
+    if(payflex_product_widget_enabled() == false AND !$payflex_product_page_widget_displayed) return;
 
     $payflex = WC_Gateway_PartPay::instance();
 
