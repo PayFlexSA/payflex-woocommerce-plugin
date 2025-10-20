@@ -1,13 +1,14 @@
-
 === Payflex Payment Gateway ===
 Contributors: tomlister, nmjbhoffmann, nathanjeffery
 Tags: payment gateway, woocommerce, buy now pay later
 Requires at least: 4.4
-Tested up to: 6.8.2
+Tested up to: 6.8.3
 Requires PHP: 7.4
-Stable tag: 2.6.7
+Stable tag: 2.6.8
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
+
+The Payflex extension for WooCommerce enables you to accept payments in installments via one of South Africa’s most popular payment gateways.
 
 == Description ==
 
@@ -37,6 +38,10 @@ That’s our problem. You get 100% of the purchase amount (less the Payflex fee)
 
 == Changelog ==
 
+= 2.6.8 =
+     * Widget enabled setting has been inverted to fix general workflow logic.
+     * Fixed issues with Admin only mode
+     * Checks involving when to display the widget were updated, variable product calculation was also updated.
 
 = 2.6.7 =
      * Update: Widget version updated to remove dependency on JQuery to prevent conflicts
