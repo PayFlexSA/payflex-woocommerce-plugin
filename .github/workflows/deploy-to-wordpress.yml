@@ -16,8 +16,8 @@ jobs:
       - name: Deploy to WordPress.org
         uses: 10up/action-wordpress-plugin-deploy@stable
         with:
-          generate-zip: 'false'   # set 'true' if you want a ZIP for the release asset
-          dry-run: 'true'         # set 'false' to actually commit to SVN
+          generate-zip: 'true'   # set 'true' if you want a ZIP for the release asset
+          dry-run: 'false'         # set 'false' to actually commit to SVN
         env:
           SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
           SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
