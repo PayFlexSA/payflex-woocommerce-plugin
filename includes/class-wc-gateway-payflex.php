@@ -591,6 +591,33 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
             $this->admin_info_block();
     } // End admin_options()
     
+    /**
+     * Process admin options and sanitize credentials
+     *
+     * @since 2.6.8
+     */
+    public function process_admin_options()
+    {
+        // Get the posted data
+        $post_data = $this->get_post_data();
+
+        // Trim whitespace from client_id and client_secret before processing
+        if (isset($post_data['woocommerce_payflex_client_id']))
+        {
+            $post_data['woocommerce_payflex_client_id'] = trim($post_data['woocommerce_payflex_client_id']);
+            $_POST['woocommerce_payflex_client_id']     = $post_data['woocommerce_payflex_client_id'];
+        }
+        
+        if (isset($post_data['woocommerce_payflex_client_secret']))
+        {
+            $post_data['woocommerce_payflex_client_secret'] = trim($post_data['woocommerce_payflex_client_secret']);
+            $_POST['woocommerce_payflex_client_secret']     = $post_data['woocommerce_payflex_client_secret'];
+        }
+
+        // Call the parent method to handle the rest of the processing
+        return parent::process_admin_options();
+    }
+    
     public function on_save_settings()
     {
         # Reset the access token
@@ -632,19 +659,6 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
         global $woocommerce;
 
         if(!payflex_checkout_widget_enabled()) return;
-
-        // if ($this->settings['testmode'] != 'production'): ?><?php esc_html_e('TEST MODE ENABLED', 'woo_payflex'); ?><?php
-        // endif;
-        // $arr = array(
-        //     'br' => array() ,
-        //     'p' => array()
-        // );
-        // if ($this->description)
-        // {
-        //     echo wp_kses('<p>' . $this->description . '</p>', $arr);
-        // }
-        // return;
-
 
         echo '<style>.elementor{max-width:100% !important}';
         echo 'html {
@@ -1932,26 +1946,27 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
 
         $access_token = $this->get_payflex_authorization_code();
         $random_string = wp_generate_password(8, false, false);
-        error_log('partpay orderId2' . $payflex_order_id);
-        $refund_args = array(
-            'headers' => array(
-                'Content-Type' => 'application/json',
+        error_log('Payflex: orderId2' . $payflex_order_id);
+        $refund_args = [
+            'headers' => [
+                'Content-Type'  => 'application/json',
                 'Authorization' => 'Bearer ' . $access_token
-            ) ,
-            'body' => json_encode(array(
-                'requestId' => 'Order #' . $order_id . '-' . $random_string,
-                'amount' => $amount,
+            ] ,
+            'body' => json_encode([
+                'requestId'               => 'Order #' . $order_id . '-' . $random_string,
+                'amount'                  => $amount,
+                'isPlugin'                => true,
                 'merchantRefundReference' => 'Order #' . $order_id . '-' . $random_string
-            ))
-        );
-        error_log('partpay orderId3' . $payflex_order_id);
+            ])
+        ];
+        error_log('Payflex: orderId3' . $payflex_order_id);
         $refundOrderUrl = $this->orderurl . '/' . $payflex_order_id . '/refund';
 
         $refund_response = wp_remote_post($refundOrderUrl, $refund_args);
         $refund_body = json_decode(wp_remote_retrieve_body($refund_response));
 
         $this->log('Refund body: ' . print_r($refund_body, true));
-        error_log('partpay orderId3' . $payflex_order_id);
+        error_log('Payflex: orderId3' . $payflex_order_id);
         $responsecode = isset($refund_response['response']['code']) ? intval($refund_response['response']['code']) : 0;
 
         if ($responsecode == 201 || $responsecode == 200) {
