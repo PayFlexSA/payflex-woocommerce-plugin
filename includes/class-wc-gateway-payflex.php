@@ -2073,16 +2073,17 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
             if (!function_exists("wc_get_order"))
                 $order = new WC_Order($pending_order->get_id());
 
-            
+            $order_id = $order->get_id();
+
             // Use wc meta function instead of get_post_meta
-            $payflex_order_id = $this->get_payflex_order_id($pending_order->get_id());
+            $payflex_order_id = $this->get_payflex_order_id($order_id);
             
             // $this->log(print_r($order, true));
             
             // Check if there's a stored order token. If not, it's not an PartPay order.
             if (!$payflex_order_id)
             {
-                $this->log('No Payflex OrderId for Order ' . $pending_order->get_id());
+                $this->log('No Payflex OrderId for Order ' . $order_id);
                 continue;
             }
             
@@ -2108,7 +2109,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
             }
 
             // Comment order url
-            $current_order_url = urlencode(admin_url('admin.php?page=wc-orders&action=edit&id=' . $pending_order->get_id()));
+            $current_order_url = urlencode(admin_url('admin.php?page=wc-orders&action=edit&id=' . $order_id));
 
             $admin_support_url = admin_url('admin.php?page=payflex-support&payflex_order_id=' . $payflex_order_id.'&redirect_url='.$current_order_url);
             $order_id_url = '<a href="'.$admin_support_url.'" >' . $payflex_order_id . '</a> ';
@@ -2117,7 +2118,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
 
             # Get workflow status
             $workflow_updated = FALSE;
-            $workflow_status  = $this->get_payflex_workflow_status($pending_order->get_id());
+            $workflow_status  = $this->get_payflex_workflow_status($order_id);
 
             if($body->orderStatus == "Initiated")
             {
@@ -2128,13 +2129,16 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
             if ($body->orderStatus == "Approved")
             {
                 $order_note = __('Payflex: Payment approved via CRON.<br>Transaction ID: ' . $order_id_url, 'woo_payflex');
+                if($workflow_status !== 'completed') $workflow_updated = TRUE;
 
-                if(!$this->checkOrderNotesExistsByOrderId($pending_order->get_id(), $order_note))
+                if($workflow_updated)
+                {
                     $order->add_order_note($order_note);
-                
-                $order->payment_complete($pending_order->get_id());
+                    $order->payment_complete($order_id);
+                }
+
                 # Update meta status
-                $this->set_payflex_workflow_status($pending_order->get_id(), 'completed');
+                $this->set_payflex_workflow_status($order_id, 'completed');
                 continue;
             }
 
@@ -2145,7 +2149,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
                 $order_note = sprintf(__('Payflex: Checked payment status via CRON. Still pending approval.', 'woo_payflex') , $payflex_order_id);
                 if($workflow_updated) $order->add_order_note($order_note);
 
-                $this->set_payflex_workflow_status($pending_order->get_id(), $body->orderStatus.'_cron_checked');
+                $this->set_payflex_workflow_status($order_id, $body->orderStatus.'_cron_checked');
                 continue;
             }
 
@@ -2156,27 +2160,24 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
 
                 $order_note = __('Payflex: Payment checked via CRON. Order '.$body->orderStatus.'.<br>Transaction ID: ' . $order_id_url, 'woo_payflex');
 
-                # Set order workflow status
-                if(!$workflow_updated)
-                {
-                    $this->set_payflex_workflow_status($pending_order->get_id(), $body->orderStatus.'_cron_checked');
-                }
-
                 # If the workflow updated, we will update the order
                 if($workflow_updated)
                 {
-                    $isExist = $this->checkOrderNotesExistsByOrderId($pending_order->get_id(), $order_note);
+                    $isExist = $this->checkOrderNotesExistsByOrderId($order_id, $order_note);
 
-                    if(!$isExist AND $workflow_updated){
+                    if(!$isExist){
                         $order->add_order_note($order_note);
                     }
                     $order->update_status('cancelled');
                 }
 
+                # Set order workflow status (always update after processing)
+                $this->set_payflex_workflow_status($order_id, $body->orderStatus.'_cron_checked');
+
                 continue;
             }
 
-            if(!$this->checkOrderNotesExistsByOrderId($pending_order->get_id(), $order_note))
+            if(!$this->checkOrderNotesExistsByOrderId($order_id, $order_note))
                 $order->add_order_note($order_note);
 
             # We will continue to update the order, but not update the order notes
