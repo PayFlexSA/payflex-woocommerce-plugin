@@ -841,7 +841,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
                     <tr>
                         <td>Payflex Plugin Version: </td>
                         <td>
-                            <span class="payflex_debug_success">v<?=$WC->version?></span>
+                            <span class="">v<?=$WC->version?></span>
                         </td>
                     </tr>
                     <tr>
@@ -874,6 +874,30 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
                             <?php else:?>
                                 <span class="payflex_debug_error">WooCommerce v<?=WC()->version?> is seriously outdated, please update Woocommerce as soon as possible</span>
                             <?php endif; ?>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Payflex Limits:</td>
+                        <td>
+                            <?php 
+                            $limits = $WC->get_payflex_limits();
+                            if($limits['minimum'] !== false && $limits['maximum'] !== false): 
+                            ?>
+                                <span class="payflex_debug_success">
+                                    Min: R<?=number_format($limits['minimum'], 2)?> | Max: R<?=number_format($limits['maximum'], 2)?>
+                                </span>
+                                <?php if($limits['refunds_enabled']): ?>
+                                    <span class="payflex_debug_success">(Refunds Enabled)</span>
+                                <?php else: ?>
+                                    <span class="payflex_debug_warning">(Refunds Disabled)</span>
+                                <?php endif; ?>
+                            <?php else: ?>
+                                <span class="payflex_debug_error">Limits not available</span>
+                            <?php endif; ?>
+                            <div class="payflex_info_text">
+                                These are the Payflex limits set for your account <br>
+                                Payflex will not be available as a payment option if the cart total is outside of these limits.
+                            </div>
                         </td>
                     </tr>
                     <tr>
@@ -1214,20 +1238,53 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
             $body = json_decode(wp_remote_retrieve_body($response) , true);
 
 
-            // $this->log('Updating payment limits response: ' . print_r($body, true));
+            // Remove old limits
+            if(isset($settings['payflex-amount-maximum'])) unset($settings['payflex-amount-maximum']);
+            if(isset($settings['payflex-amount-minimum'])) unset($settings['payflex-amount-minimum']);
 
             if (!is_wp_error($response) && isset($response['response']['code']) && $response['response']['code'] == 200)
             {
                 if($this->get_debug_mode()) $this->log('Updating payment limits');
                 
-                $settings['payflex-amount-minimum'] = isset($body['minimumAmount']) ? $body['minimumAmount'] : 0;
-                $settings['payflex-amount-maximum'] = isset($body['maximumAmount']) ? $body['maximumAmount'] : 0;
+                $settings['payflex_limit_amount_minimum']  = isset($body['minimumAmount']) ? $body['minimumAmount'] : 0;
+                $settings['payflex_limit_amount_maximum']  = isset($body['maximumAmount']) ? $body['maximumAmount'] : 0;
+                $settings['payflex_limit_refunds_enabled'] = isset($body['enabledForRefunds']) ? $body['enabledForRefunds'] : false;
+
+                $settings['payflex_limit_last_updated'] = time();
             }
 
             update_option('woocommerce_payflex_settings', $settings);
         }
         $this->init_settings();
 
+    }
+
+
+    /**
+     * Get Payflex payment limits
+     * @param bool $field Specific field to return (amount_minimum, amount_maximum, refunds_enabled)
+     * @return array|bool
+     */
+    public function get_payflex_limits($field = false)
+    {
+        if (!isset($settings['payflex_limit_last_updated']) || (time() - $settings['payflex_limit_last_updated']) > 86400) {
+            $this->update_payment_limits();
+        }
+
+        $settings = get_payflex_option();
+
+        if($field)
+        {
+            return isset($settings['payflex_limit_'.$field]) ? $settings['payflex_limit_'.$field] : false;
+        }
+        else
+        {
+            return [
+                'minimum'         => isset($settings['payflex_limit_amount_minimum']) ? $settings['payflex_limit_amount_minimum'] : false,
+                'maximum'         => isset($settings['payflex_limit_amount_maximum']) ? $settings['payflex_limit_amount_maximum'] : false,
+                'refunds_enabled' => isset($settings['payflex_limit_refunds_enabled']) ? $settings['payflex_limit_refunds_enabled'] : false,
+            ];
+        }
     }
 
     /**

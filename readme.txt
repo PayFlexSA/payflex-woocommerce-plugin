@@ -4,7 +4,7 @@ Tags: payment gateway, woocommerce, buy now pay later
 Requires at least: 4.4
 Tested up to: 6.8.3
 Requires PHP: 7.4
-Stable tag: 2.6.8
+Stable tag: 2.6.9
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -37,7 +37,9 @@ We don’t believe in tying our merchants into long-term commitments. We’re in
 That’s our problem. You get 100% of the purchase amount (less the Payflex fee) paid in full upfront.
 
 == Changelog ==
-
+= 2.6.9 =
+     * Added required parameter to refund call
+     * Fixed rare issue with abandoned orders sometimes causing multiple order notes when CRON runs
 = 2.6.8 =
      * Widget enabled setting has been inverted to fix general workflow logic.
      * Fixed issues with Admin only mode

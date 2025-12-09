@@ -2,7 +2,7 @@
 /*
  * Plugin Name: Payflex Payment Gateway
  * Description: Payflex payment gateway plugin for WooCommerce. Supports pay now as well as buy now pay later.
- * Version: 2.6.8
+ * Version: 2.6.9
  * Author: Payflex
  * Author URI: https://payflex.co.za/
  * WC requires at least: 6.0
@@ -192,8 +192,6 @@ add_action( 'woocommerce_blocks_loaded', 'oawoo_register_order_approval_payment_
  * Custom function to register a payment method type
  */
 function oawoo_register_order_approval_payment_method_type() {
-
-    if(!payflex_enabled()) return;
 
     // Check if the required class exists
     if ( ! class_exists( 'Automattic\WooCommerce\Blocks\Payments\Integrations\AbstractPaymentMethodType' ) ) {
@@ -478,6 +476,17 @@ function payflex_checkout_widget_enabled()
 {
 
     if(payflex_enabled() == false) return false;
+    // Check if cart total is within payment limits
+    if (WC()->cart) {
+        $cart_total = WC()->cart->get_total('edit');
+        $gateway = WC_Gateway_PartPay::instance();
+        $min_amount = $gateway->get_payflex_limits('amount_minimum');
+        $max_amount = $gateway->get_payflex_limits('amount_maximum');
+        
+        if ($cart_total < $min_amount || $cart_total > $max_amount) {
+            return false;
+        }
+    }
 
     if(get_payflex_option('enable_checkout_widget') === 'yes') return true;
 
