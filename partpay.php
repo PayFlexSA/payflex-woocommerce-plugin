@@ -387,9 +387,9 @@ function woo_payflex_frontend_widget($amount = false)
     $payflex_product_page_widget_displayed = true;
 
     if($merchant_reference){
-        return '<div class="payflexCalculatorWidgetContainer" '.$all_div_options.'><script async src="https://widgets.payflex.co.za/'.$merchant_reference.'/payflex-widget-2.0.1.js?type=calculator'.$all_options.'" type="application/javascript"></script></div>';
+        return '<div class="payflexCalculatorWidgetContainer" '.$all_div_options.'><script async src="https://widgets.payflex.co.za/'.$merchant_reference.'/2.0.3/payflex-widget.js?type=calculator'.$all_options.'" type="application/javascript"></script></div>';
     }
-    return '<div class="payflexCalculatorWidgetContainer" '.$all_div_options.'><script async src="https://widgets.payflex.co.za/payflex-widget-2.0.1.js?type=calculator'.$all_options.'" type="application/javascript"></script></div>';
+    return '<div class="payflexCalculatorWidgetContainer" '.$all_div_options.'><script async src="https://widgets.payflex.co.za/2.0.3/payflex-widget.js?type=calculator'.$all_options.'" type="application/javascript"></script></div>';
 }
 
 // Register support page. This needs to be outside the class otherwise it won't be called soon enough
