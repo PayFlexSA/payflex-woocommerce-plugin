@@ -250,9 +250,9 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
         ];
 
         $pf_merch_value       = 'your-merchant-name';
-        $pf_merch_ref_example = 'https://widgets.payflex.co.za/<span class="pf-merch-value">'.$pf_merch_value.'</span>/payflex-widget-2.0.1.js?type=calculator';
+        $pf_merch_ref_example = 'https://widgets.payflex.co.za/<span class="pf-merch-value">'.$pf_merch_value.'</span>/2.0.3/payflex-widget.js?type=calculator';
 
-        $pf_merch_ref_example = 'https://widgets.payflex.co.za/<span class="pf-merch-value">'.get_payflex_option('merchant_widget_reference').'</span>/payflex-widget-2.0.1.js?type=calculator';
+        $pf_merch_ref_example = 'https://widgets.payflex.co.za/<span class="pf-merch-value">'.get_payflex_option('merchant_widget_reference').'</span>/2.0.3/payflex-widget.js?type=calculator';
 
         $this->form_fields = [
             'enabled' => [
@@ -435,7 +435,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
                 }else{
                     widget_preview.addClass('dark');
                 }
-                var widget_preview_url = 'https://widgets.payflex.co.za/your-merchant-name/payflex-widget-2.0.1.js?type=calculator&amount=1000&logo_type=' + widget_style + '&theme=' + widget_theme + '&pay_type=' + pay_type;
+                var widget_preview_url = 'https://widgets.payflex.co.za/your-merchant-name/2.0.3/payflex-widget.js?type=calculator&amount=1000&logo_type=' + widget_style + '&theme=' + widget_theme + '&pay_type=' + pay_type;
                 widget_preview.html('<script src="' + widget_preview_url + '"><\/script>');
             });
 
@@ -450,7 +450,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
                 }else{
                     widget_preview.addClass('dark');
                 }
-                var widget_preview_url = 'https://widgets.payflex.co.za/your-merchant-name/payflex-widget-2.0.1.js?type=calculator&amount=1000&logo_type=' + widget_style + '&theme=' + widget_theme + '&pay_type=' + pay_type;
+                var widget_preview_url = 'https://widgets.payflex.co.za/your-merchant-name/2.0.3/payflex-widget.js?type=calculator&amount=1000&logo_type=' + widget_style + '&theme=' + widget_theme + '&pay_type=' + pay_type;
                 widget_preview.html('<script src="' + widget_preview_url + '"><\/script>');
             });
 
