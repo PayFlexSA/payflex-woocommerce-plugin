@@ -1910,51 +1910,30 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
      */
     public function check_cart_within_limits($gateways)
     {
-
         global $woocommerce;
-        $total = isset($woocommerce
-            ->cart
-            ->total) ? $woocommerce
-            ->cart->total : 0;
+        $total = isset($woocommerce->cart->total) ? $woocommerce->cart->total : 0;
 
-        $access_token = $this->get_payflex_authorization_code();
-        $config_response_transistent = get_transient('payflex_configuration_response');
-        $api_url = $this->configurationUrl;
-        if (false !== $config_response_transistent && !empty($config_response_transistent))
-        {
-            $order_response = $config_response_transistent;
-            $order_body = json_decode($order_response);
+        $limits = $this->get_payflex_limits();
+
+        // Make sure limits are set variables
+        if (!isset($limits['minimum']) || !isset($limits['maximum'])) {
+            return $gateways;
         }
-        else
-        {
 
-            $order_args = array(
-                'method' => 'GET',
-                'headers' => array(
-                    'Content-Type' => 'application/json',
-                    'Authorization' => 'Bearer ' . $access_token
-                ) ,
-                'timeout' => 30
-            );
-            $order_response = wp_remote_post($api_url, $order_args);
-            $order_response = wp_remote_retrieve_body($order_response);
-            $order_body = json_decode($order_response);
-            set_transient('payflex_configuration_response', $order_response, 86400);
+        // If we don't have a min or max amount, something is wrong.
+        if ($limits['minimum'] === false || $limits['maximum'] === false)
+        {
+            return $gateways;
         }
-        if ($order_response)
+
+        $pbi = ($total >= $limits['minimum'] && $total <= $limits['maximum']);
+
+        if (!$pbi)
         {
-
-            $pbi = ($total >= $order_body->minimumAmount && $total <= $order_body->maximumAmount);
-
-            if (!$pbi)
-            {
-                unset($gateways['partpay']);
-            }
-
+            unset($gateways['payflex']);
         }
 
         return $gateways;
-
     }
 
     /**
