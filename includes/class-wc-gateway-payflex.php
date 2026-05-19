@@ -1318,66 +1318,46 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
 
         //Process here
         $orderitems = $order->get_items();
-        $items = array();
+        $objectItems = array();
         $i = 0;
         if (count($orderitems))
         {
             foreach ($orderitems as $item)
             {
+                $qty = (int)$item->get_quantity();
+                if ($qty <= 0) continue;
 
                 $i++;
-                // get SKU
-                if ($item['variation_id'])
-                {
 
+                if ($item->get_variation_id())
+                {
                     if (function_exists("wc_get_product"))
                     {
-                        $product = wc_get_product($item['variation_id']);
+                        $product = wc_get_product($item->get_variation_id());
                     }
                     else
                     {
-                        $product = new WC_Product($item['variation_id']);
+                        $product = new WC_Product($item->get_variation_id());
                     }
                 }
                 else
                 {
-
                     if (function_exists("wc_get_product"))
                     {
-                        $product = wc_get_product($item['product_id']);
+                        $product = wc_get_product($item->get_product_id());
                     }
                     else
                     {
-                        $product = new WC_Product($item['product_id']);
+                        $product = new WC_Product($item->get_product_id());
                     }
                 }
 
-                if ($i == count($orderitems))
-                {
-                    $product = $items[] = array(
-
-                        '{
-                            "name":"' . esc_html($item['name']) . $i . '",
-                            "sku":"' . $product->get_sku() . '",
-                            "quantity":"' . $item['qty'] . '",
-                            "price":"' . number_format(($item['line_subtotal'] / $item['qty']) , 2, '.', '') . '"
-                        }'
-
-                    );
-                }
-                else
-                {
-                    $product = $items[] = array(
-
-                        '{
-                            "name":"' . esc_html($item['name']) . $i . '",
-                            "sku":"' . $product->get_sku() . '",
-                            "quantity":"' . $item['qty'] . '",
-                            "price":"' . number_format(($item['line_subtotal'] / $item['qty']) , 2, '.', '') . '"
-                        }'
-
-                    );
-                }
+                $objectItems[] = array(
+                    'name'     => esc_html($item['name']) . $i,
+                    'sku'      => $product->get_sku(),
+                    'quantity' => (string)$qty,
+                    'price'    => number_format($item['line_subtotal'] / $qty, 2, '.', ''),
+                );
             }
         }
 
@@ -1412,14 +1392,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
         $OrderBodyObj->shipping->suburb       = (string)$order->get_shipping_city();
         $OrderBodyObj->shipping->postcode     = (string)$order->get_shipping_postcode();
         $OrderBodyObj->description            = 'string';
-        $OrderBodyObj->items                  = [];
-        $objectItems                          = [];
-        foreach ($items as $item)
-        {
-            array_push($objectItems,json_decode($item[0]));
-        }
-
-        $OrderBodyObj->items                        = $objectItems;
+        $OrderBodyObj->items                  = $objectItems;
         $OrderBodyObj->merchant                     = new stdClass;
         $OrderBodyObj->merchant->redirectConfirmUrl = (string)$this->get_return_url($order) . '&order_id=' . $order_id . '&status=confirmed&wc-api=WC_Gateway_PartPay';
         $OrderBodyObj->merchant->redirectCancelUrl  = (string)$this->get_return_url($order) . '&status=cancelled';
@@ -1459,6 +1432,14 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
             // Check payflex order transaction ID on Payflex
             $payflex_order = $this->payflex_remote_get_order($existing_order_id);
 
+            if ($payflex_order === false)
+            {
+                $order->add_order_note(__('Payflex: Unable to verify the status of existing transaction ' . $existing_order_id . ' - API did not return a valid response.', 'woo_payflex'));
+                wc_add_notice(__('Unable to verify your existing Payflex transaction. Please try again later.', 'woo_payflex'), 'error');
+                return;
+            }
+
+
             if($payflex_order->orderStatus == 'Declined' OR $payflex_order->orderStatus == 'Abandoned' OR $payflex_order->orderStatus == 'Cancelled')
             {
                 // If the order status is declined or abandoned, we can create a new order
@@ -1477,6 +1458,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
 
                 return;
             }
+            
             if($payflex_order->orderStatus == 'Approved')
             {
                 // If the order status is approved, we should not create a new order
@@ -1663,11 +1645,10 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
 
         $this->log('Saved ' . $savedId . ' into post meta');
 
-        $redirect = $order->get_checkout_payment_url(true);
-        $this->log('Redirect URL ' . json_encode($redirect));
+        $this->log('Redirect URL ' . json_encode($order_body->redirectUrl));
         return array(
             'result'   => 'success',
-            'redirect' => $redirect
+            'redirect' => $order_body->redirectUrl
         );
 
     }
@@ -2530,19 +2511,24 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
 
     public function payflex_remote_get_order($payflex_order_id)
     {
-        // sanitize the order id
         $payflex_order_id = sanitize_text_field($payflex_order_id);
 
-        if(!$payflex_order_id)
+        if (!$payflex_order_id)
             return false;
 
         $response = wp_remote_get($this->orderurl . '/' . $payflex_order_id, array(
             'headers' => array(
-                'Authorization' => 'Bearer ' . $this->get_payflex_authorization_code() ,
+                'Authorization' => 'Bearer ' . $this->get_payflex_authorization_code(),
             )
         ));
 
+        if (is_wp_error($response))
+            return false;
+
         $body = json_decode(wp_remote_retrieve_body($response));
+
+        if (!is_object($body) || !isset($body->orderStatus))
+            return false;
 
         return $body;
     }
