@@ -386,10 +386,15 @@ function woo_payflex_frontend_widget($amount = false)
 
     $payflex_product_page_widget_displayed = true;
 
+    $custom_css = '';
+    if (!empty($payflex_settings['widget_custom_css'])) {
+        $custom_css = '<style>' . wp_strip_all_tags($payflex_settings['widget_custom_css']) . '</style>';
+    }
+
     // if($merchant_reference){
-    //     return '<div class="payflexCalculatorWidgetContainer" '.$all_div_options.'><script async src="https://widgets.payflex.co.za/'.$merchant_reference.'/2.0.3/payflex-widget.min.js?type=calculator'.$all_options.'" type="application/javascript"></script></div>';
+    //     return $custom_css . '<div class="payflexCalculatorWidgetContainer" '.$all_div_options.'><script async src="https://widgets.payflex.co.za/'.$merchant_reference.'/2.0.3/payflex-widget.min.js?type=calculator'.$all_options.'" type="application/javascript"></script></div>';
     // }
-    return '<div class="payflexCalculatorWidgetContainer" '.$all_div_options.'><script async src="https://widgets.payflex.co.za/2.0.3/payflex-widget.min.js?type=calculator'.$all_options.'" type="application/javascript"></script></div>';
+    return $custom_css . '<div class="payflexCalculatorWidgetContainer" '.$all_div_options.'><script async src="https://widgets.payflex.co.za/2.0.3/payflex-widget.min.js?type=calculator'.$all_options.'" type="application/javascript"></script></div>';
 }
 
 // Register support page. This needs to be outside the class otherwise it won't be called soon enough

@@ -278,22 +278,14 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
         */
     public function admin_options()
     {
-    ?>
+        ?>
         <h3><?php esc_html_e('Payflex Gateway', 'woo_payflex'); ?></h3>
-
-        <table class="form-table payflex-support-settings-table">
-            <?php
-        // Generate the HTML For the settings form.
-        $this->generate_settings_html();
-
-
-    ?>
-        </table><!--/.form-table-->
-
+        <div class="pf-settings-wrap">
+            <?php $this->generate_settings_html(); ?>
+        </div>
         <?php
-
-            $this->admin_info_block();
-    } // End admin_options()
+        $this->admin_info_block();
+    }
     
     /**
      * Process admin options and sanitize credentials
