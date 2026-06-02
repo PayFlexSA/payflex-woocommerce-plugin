@@ -110,13 +110,6 @@ trait WC_Gateway_Payflex_Form_Fields
                 'label'   => __('Enable Checkout Page Widget', 'woo_payflex'),
                 'default' => 'yes'
             ],
-            'merchant_widget_reference' => [
-                'title'       => __('Widget Reference', 'woo_payflex'),
-                'type'        => 'text',
-                'label'       => __('Widget Reference', 'woo_payflex'),
-                'default'     => __('', 'woo_payflex'),
-                'description' => __('This is an optional reference that will be used to identify the widget on Payflex. <br/>Example: <span class="pf_merchant_ref_example">'.$pf_merch_ref_example.'</span><br/><br/>Info: <a href="https://widgets.payflex.co.za/index-2.html" target="_blank">https://widgets.payflex.co.za/index-2.html</a>', 'woo_payflex')
-            ],
             'admin_only_enabled' => [
                 'title'       => __('Admin Only Mode', 'woo_payflex'),
                 'type'        => 'checkbox',
