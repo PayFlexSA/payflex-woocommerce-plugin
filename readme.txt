@@ -42,7 +42,7 @@ That’s our problem. You get 100% of the purchase amount (less the Payflex fee)
      * Added min-max value checks to prevent being able to checkout when the total cart value is above or below the Payflex limit
      * Removed merchant reference for the widget
      * General changes to the backend form
-     * Improved compatibilty with subscription plugins that add subscriptions
+     * Improved compatibility with subscription plugins that add subscriptions
 = 2.6.9 =
      * Added required parameter to refund call
      * Fixed rare issue with abandoned orders sometimes causing multiple order notes when CRON runs
