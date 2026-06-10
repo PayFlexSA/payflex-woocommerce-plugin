@@ -66,7 +66,7 @@ trait WC_Gateway_Payflex_Form_Fields
             ],
             'client_secret' => [
                 'title'   => __('Client Secret', 'woo_payflex'),
-                'type'    => 'text',
+                'type'    => 'password_toggle',
                 'default' => '',
             ],
             'section_credentials_end' => ['type' => 'section_end'],
@@ -112,14 +112,14 @@ trait WC_Gateway_Payflex_Form_Fields
                 'label'   => __('Show widget on the checkout page', 'woo_payflex'),
                 'default' => 'yes',
             ],
-            'widget_custom_css' => [
-                'title'       => __('Custom CSS', 'woo_payflex'),
-                'type'        => 'textarea',
-                'description' => __('CSS injected alongside the widget on product and checkout pages.', 'woo_payflex'),
-                'default'     => '',
-                'placeholder' => '.payflexCalculatorWidgetContainer { }',
-                'css'         => 'font-family: Consolas, monospace; font-size: 12px; height: 120px; resize: vertical;',
-            ],
+            // 'widget_custom_css' => [
+            //     'title'       => __('Custom CSS', 'woo_payflex'),
+            //     'type'        => 'textarea',
+            //     'description' => __('CSS injected alongside the widget on product and checkout pages.', 'woo_payflex'),
+            //     'default'     => '',
+            //     'placeholder' => '.payflexCalculatorWidgetContainer { }',
+            //     'css'         => 'font-family: Consolas, monospace; font-size: 12px; height: 120px; resize: vertical;',
+            // ],
             'section_widget_end' => ['type' => 'section_end'],
 
             // Advanced
@@ -182,6 +182,60 @@ trait WC_Gateway_Payflex_Form_Fields
     }
 
     /**
+     * Renders a password input with a reveal/hide eye toggle button.
+     */
+    public function generate_password_toggle_html($key, $data)
+    {
+        $field_key = $this->get_field_key($key);
+        $defaults  = [
+            'title'       => '',
+            'description' => '',
+            'placeholder' => '',
+            'class'       => '',
+            'css'         => '',
+        ];
+        $data  = wp_parse_args($data, $defaults);
+        $value = $this->get_option($key);
+
+        ob_start();
+        ?>
+        <tr valign="top">
+            <th scope="row" class="titledesc">
+                <label for="<?php echo esc_attr($field_key); ?>"><?php echo wp_kses_post($data['title']); ?></label>
+            </th>
+            <td class="forminp">
+                <div class="pf-password-wrap">
+                    <input
+                        type="password"
+                        name="<?php echo esc_attr($field_key); ?>"
+                        id="<?php echo esc_attr($field_key); ?>"
+                        value="<?php echo esc_attr($value); ?>"
+                        class="input-text regular-input <?php echo esc_attr($data['class']); ?>"
+                        style="<?php echo esc_attr($data['css']); ?>"
+                        placeholder="<?php echo esc_attr($data['placeholder']); ?>"
+                    />
+                    <button type="button" class="pf-toggle-secret" onclick="pfToggleSecret(this)" aria-label="<?php esc_attr_e('Toggle visibility', 'woo_payflex'); ?>">
+                        <span class="dashicons dashicons-visibility"></span>
+                    </button>
+                </div>
+                <?php if (!empty($data['description'])): ?>
+                    <p class="description"><?php echo wp_kses_post($data['description']); ?></p>
+                <?php endif; ?>
+            </td>
+        </tr>
+        <?php
+        return ob_get_clean();
+    }
+
+    /**
+     * Save handler for the password_toggle field — delegates to the standard text validator.
+     */
+    public function validate_password_toggle_field($key, $value)
+    {
+        return $this->validate_text_field($key, $value);
+    }
+
+    /**
      * Checks if the form fields match saved options; returns any fields missing from saved options.
      */
     public function form_field_check()
@@ -227,6 +281,15 @@ trait WC_Gateway_Payflex_Form_Fields
     {
         ?>
         <script>
+        function pfToggleSecret(btn) {
+            var input = btn.closest('.pf-password-wrap').querySelector('input');
+            var icon  = btn.querySelector('.dashicons');
+            var show  = input.type === 'password';
+            input.type = show ? 'text' : 'password';
+            icon.classList.toggle('dashicons-visibility', !show);
+            icon.classList.toggle('dashicons-hidden',    show);
+        }
+
         function pfUpdateWidgetPreview() {
             var style   = jQuery('#woocommerce_payflex_widget_style').val();
             var theme   = jQuery('#woocommerce_payflex_widget_theme').val();
@@ -431,6 +494,48 @@ trait WC_Gateway_Payflex_Form_Fields
                 background: #fff;
                 padding: 2px 4px;
                 border-radius: 3px;
+            }
+
+            /* ── Password toggle ────────────────────────────────────────── */
+            .pf-password-wrap {
+                position: relative;
+                display: flex;
+                align-items: center;
+            }
+
+            .pf-password-wrap input[type="password"],
+            .pf-password-wrap input[type="text"] {
+                padding-right: 34px !important;
+            }
+
+            .pf-toggle-secret {
+                position: absolute;
+                right: 8px;
+                background: none !important;
+                border: none !important;
+                box-shadow: none !important;
+                cursor: pointer;
+                padding: 0 !important;
+                color: #646970 !important;
+                text-decoration: none !important;
+                line-height: 1;
+                outline: none;
+            }
+
+            .pf-toggle-secret:hover {
+                color: #1d2327 !important;
+            }
+
+            .pf-toggle-secret:focus {
+                box-shadow: none !important;
+                outline: none !important;
+            }
+
+            .pf-toggle-secret .dashicons {
+                font-size: 16px;
+                width: 16px;
+                height: 16px;
+                line-height: 1.1;
             }
         </style>
         <?php
