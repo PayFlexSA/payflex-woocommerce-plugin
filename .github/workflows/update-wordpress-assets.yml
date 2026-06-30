@@ -1,0 +1,28 @@
+name: Update WordPress.org assets
+
+# Updates only the readme.txt and the marketplace assets (banners, icons,
+# screenshots) on WordPress.org WITHOUT deploying a new plugin version.
+# The full plugin deploy lives in deploy-to-wordpress.yml (runs on release).
+on:
+  # Run automatically when the readme or any asset actually changes on main.
+  push:
+    branches: [main]
+    paths:
+      - 'readme.txt'
+      - '.wordpress-org/**'
+  # Allow running it by hand from the Actions tab any time.
+  workflow_dispatch:
+
+jobs:
+  update-assets:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: WordPress.org plugin asset/readme update
+        uses: 10up/action-wordpress-plugin-asset-update@stable
+        env:
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          SLUG: payflex-payment-gateway
