@@ -16,7 +16,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
     protected string $configurationUrl = '';
     protected string $orderurl = '';
 
-    private $version = '2.7.0';
+    private $version = '2.7.1';
 
     /**
         * @var $_instance WC_Gateway_PartPay The reference to the singleton instance of this class
