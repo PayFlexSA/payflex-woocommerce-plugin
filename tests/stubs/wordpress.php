@@ -269,6 +269,18 @@ function get_plugins()
 function plugin_basename($file)
 {
     $file = str_replace('\\', '/', $file);
+
+    // The plugin's real WP_PLUGIN_DIR entry is always "payflex-payment-gateway",
+    // regardless of what the checkout directory on disk happens to be named
+    // (e.g. the git repo folder in CI). Rewrite the known plugin root rather
+    // than guessing from a literal "/plugins/" segment in the path.
+    if (defined('PAYFLEX_PLUGIN_ROOT')) {
+        $root = str_replace('\\', '/', PAYFLEX_PLUGIN_ROOT);
+        if (strpos($file, $root) === 0) {
+            return 'payflex-payment-gateway' . substr($file, strlen($root));
+        }
+    }
+
     $marker = '/plugins/';
     $pos = strpos($file, $marker);
     if ($pos !== false) {
