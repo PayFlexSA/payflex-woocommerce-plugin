@@ -4,9 +4,62 @@ on:
   release:
     types: [published]   # click "Publish release" on GitHub to trigger
 
+permissions:
+  contents: write        # the deploy step attaches the generated ZIP to the release
+
 jobs:
-  deploy:
+  # ---------------------------------------------------------------------------
+  # Gate 1 — the full test suite must pass on the commit being released.
+  # ---------------------------------------------------------------------------
+  test:
+    name: Tests
+    uses: ./.github/workflows/tests.yml
+
+  # ---------------------------------------------------------------------------
+  # Gate 2 — the release tag must match the version the plugin declares.
+  #
+  # WordPress.org publishes whatever the plugin header says, so a tag and header
+  # that disagree ship under the wrong version number. The test suite already
+  # checks that the plugin header, WC_Gateway_PartPay::$version and readme.txt's
+  # Stable tag agree with each other; this checks them against the tag.
+  # ---------------------------------------------------------------------------
+  version-check:
+    name: Release tag matches plugin version
     runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compare tag with the plugin version
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+
+          plugin_version="$(grep -oPi '^\s*\*?\s*Version:\s*\K\S+' partpay.php | head -n1)"
+          tag_version="${TAG#v}"
+
+          echo "Plugin header version: $plugin_version"
+          echo "Release tag:           $TAG (normalised: $tag_version)"
+
+          if [ "$plugin_version" != "$tag_version" ]; then
+            echo "::error::Release tag '$TAG' does not match the plugin version '$plugin_version'."
+            echo "::error::Update the Version header in partpay.php, WC_Gateway_PartPay::\$version and the Stable tag in readme.txt, then re-tag. See README.md."
+            exit 1
+          fi
+
+          echo "Versions agree — proceeding."
+
+  # ---------------------------------------------------------------------------
+  # Deploy — `needs` means this job is skipped entirely if either gate fails,
+  # so a failing test suite can never publish to WordPress.org.
+  # ---------------------------------------------------------------------------
+  deploy:
+    name: Deploy to WordPress.org
+    needs: [test, version-check]
+    runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repo (fetch tags)
         uses: actions/checkout@v4

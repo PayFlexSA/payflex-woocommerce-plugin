@@ -13,8 +13,19 @@ on:
   # Allow running it by hand from the Actions tab any time.
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
+  # readme.txt carries the Stable tag, which the test suite checks against the
+  # plugin header. Gating on the suite stops a readme that advertises a version
+  # we have not actually deployed from going live.
+  test:
+    name: Tests
+    uses: ./.github/workflows/tests.yml
+
   update-assets:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo

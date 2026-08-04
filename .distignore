@@ -1,4 +1,33 @@
-/.wordpress-org
+# Files and directories excluded from the WordPress.org deploy.
+# Read by 10up/action-wordpress-plugin-deploy — anything NOT listed here ships.
+# PluginIntegrityTest asserts that this list stays complete.
+
+# Repository / CI
 /.git
+/.gitignore
 /.github
+/.distignore
+
+# WordPress.org marketplace assets (pushed separately to SVN /assets)
+/.wordpress-org
+
+# Developer docs — readme.txt is the public listing and must ship
 /README.md
+/AGENTS.md
+
+# Test suite and tooling
+/tests
+/phpunit.xml
+/phpunit.xml.dist
+/.phpunit.cache
+/.phpunit.result.cache
+
+# Composer: dev-only, the plugin itself has no runtime dependencies
+/composer.json
+/composer.lock
+/vendor
+
+# Editor / OS noise
+/.vscode
+/.idea
+/.DS_Store

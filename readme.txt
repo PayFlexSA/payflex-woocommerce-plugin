@@ -2,9 +2,9 @@
 Contributors: tomlister, nmjbhoffmann, nathanjeffery
 Tags: payment gateway, woocommerce, buy now pay later
 Requires at least: 4.4
-Tested up to: 6.8.3
+Tested up to: 7.0.2
 Requires PHP: 7.4
-Stable tag: 2.7.0
+Stable tag: 2.7.1
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -37,6 +37,10 @@ We don’t believe in tying our merchants into long-term commitments. We’re in
 That’s our problem. You get 100% of the purchase amount (less the Payflex fee) paid in full upfront.
 
 == Changelog ==
+
+= 2.7.1 =
+     * Added automated testing and updated tested version to 7.0.2
+
 = 2.7.0 =
      * Updated widget version
      * Added min-max value checks to prevent being able to checkout when the total cart value is above or below the Payflex limit

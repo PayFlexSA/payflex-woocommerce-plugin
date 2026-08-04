@@ -1,0 +1,27 @@
+{
+    "name": "payflex/payflex-woocommerce-plugin",
+    "description": "Payflex payment gateway for WooCommerce",
+    "type": "wordpress-plugin",
+    "license": "GPL-3.0-or-later",
+    "require": {
+        "php": ">=8.1"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10.5 || ^11.0 || ^12.0"
+    },
+    "autoload-dev": {
+        "classmap": [
+            "tests/"
+        ],
+        "exclude-from-classmap": [
+            "tests/stubs/"
+        ]
+    },
+    "scripts": {
+        "test": "phpunit",
+        "lint": "find . -path ./vendor -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l"
+    },
+    "config": {
+        "sort-packages": true
+    }
+}
