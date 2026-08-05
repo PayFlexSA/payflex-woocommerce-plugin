@@ -14,11 +14,54 @@
  * Check if WooCommerce is activated
  */
 
-if (!function_exists('is_plugin_active') || !function_exists('is_plugin_active_for_network'))
+if (!function_exists('is_plugin_active') || !function_exists('is_plugin_active_for_network') || !function_exists('get_plugins'))
 {
     include_once(ABSPATH . 'wp-admin/includes/plugin.php');
 }
-$woocommerce_active = is_plugin_active('woocommerce/woocommerce.php') || is_plugin_active_for_network('woocommerce/woocommerce.php');
+
+/**
+ * WordPress renames a plugin's folder to resolve a name collision on upload
+ * (e.g. an existing "woocommerce" folder becomes "woocommerce_"), which breaks
+ * a literal path match against 'woocommerce/woocommerce.php'. Fall back to
+ * matching by filename across all installed plugins.
+ */
+function payflex_is_woocommerce_active()
+{
+    if (is_plugin_active('woocommerce/woocommerce.php') || is_plugin_active_for_network('woocommerce/woocommerce.php'))
+    {
+        return true;
+    }
+
+    foreach (array_keys(get_plugins()) as $plugin)
+    {
+        if (basename($plugin) === 'woocommerce.php' && (is_plugin_active($plugin) || is_plugin_active_for_network($plugin)))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+$woocommerce_active = payflex_is_woocommerce_active();
+
+/**
+ * Add settings link on plugin page, or a reason we're disabled if WooCommerce wasn't detected
+ */
+add_filter( 'plugin_action_links_' . plugin_basename(__FILE__), function ( $actions ) use ( $woocommerce_active )
+{
+    if ( $woocommerce_active )
+    {
+        $actions[] = '<a href="' . admin_url( 'admin.php?page=wc-settings&tab=checkout&section=payflex' ) . '">Settings</a>';
+    }
+    else
+    {
+        $actions[] = '<span style="color:#b32d2e;">WooCommerce not detected</span>';
+    }
+
+    return $actions;
+} );
+
 if (!$woocommerce_active) return;
 
 # We need to set a global variable for the product page widget, otherwise it won't work in some themes
@@ -31,7 +74,7 @@ $payflex_product_page_widget_displayed = false;
 function get_payflex_option($option = FALSE)
 {
     $payflex_settings = get_option('woocommerce_payflex_settings', array());
-    
+
     if(!isset($payflex_settings) || !is_array($payflex_settings))
     {
         $payflex_settings = [];
@@ -48,16 +91,6 @@ function get_payflex_option($option = FALSE)
 
     return $payflex_settings;
 }
-
-/**
- * Add settings link on plugin page
- */
-add_filter( 'plugin_action_links_' . plugin_basename(__FILE__), function ( $actions )
-{
-    return array_merge( $actions, [
-        '<a href="' . admin_url( 'admin.php?page=wc-settings&tab=checkout&section=payflex' ) . '">Settings</a>',
-    ]);
-} );
 
 
 

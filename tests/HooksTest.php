@@ -53,6 +53,37 @@ final class HooksTest extends PF_TestCase
     /* --------------------------------------------------------------------- */
 
     /**
+     * WordPress renames a plugin's folder to resolve a name collision on
+     * upload (observed in production as "woocommerce_"). That used to disable
+     * the whole plugin silently: is_plugin_active() no longer matched the
+     * hardcoded 'woocommerce/woocommerce.php' path, so partpay.php returned
+     * before registering the gateway, with no error anywhere and the plugin
+     * still showing as "Active" on the Plugins screen.
+     */
+    public function test_woocommerce_is_detected_at_its_standard_path(): void
+    {
+        PF_State::$active_plugins = ['woocommerce/woocommerce.php'];
+
+        $this->assertTrue(payflex_is_woocommerce_active());
+    }
+
+    public function test_woocommerce_is_still_detected_when_its_folder_has_been_renamed(): void
+    {
+        PF_State::$active_plugins = ['woocommerce_/woocommerce.php'];
+
+        $this->assertTrue(payflex_is_woocommerce_active());
+    }
+
+    public function test_woocommerce_is_not_detected_when_it_is_not_installed(): void
+    {
+        PF_State::$active_plugins = ['some-other-plugin/some-other-plugin.php'];
+
+        $this->assertFalse(payflex_is_woocommerce_active());
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    /**
      * Without these declarations WooCommerce shows an incompatibility warning
      * and can refuse to enable HPOS or block checkout.
      */
