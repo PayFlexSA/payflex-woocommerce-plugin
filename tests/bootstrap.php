@@ -4,7 +4,7 @@
  *
  * The plugin is loaded against hand-written WordPress/WooCommerce stubs rather
  * than a real WordPress install, so the suite runs with no database and no
- * network access. See README.md for the reasoning and the limits of this.
+ * network access. See AGENTS.md for the reasoning and the limits of this.
  */
 
 declare(strict_types=1);
