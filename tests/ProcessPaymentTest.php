@@ -209,6 +209,73 @@ final class ProcessPaymentTest extends PF_TestCase
         $this->assertStringContainsString('status=cancelled', $merchant['redirectCancelUrl']);
     }
 
+    /**
+     * Payflex validates the redirect URLs as absolute URIs and rejects the whole
+     * request with CRM006 if either is relative, so a site whose home_url() has
+     * been made root-relative (WP_HOME = '/', or a portability plugin) must still
+     * send a fully-qualified URL.
+     */
+    public function test_redirect_urls_are_absolute_even_when_home_url_is_relative(): void
+    {
+        PF_State::$home_url = '/';
+        PF_State::$site_url = '/';
+
+        $gateway = $this->gateway();
+        $this->order();
+        $this->queueCreated();
+        $_SERVER['HTTP_HOST'] = 'relative.example.test';
+
+        $gateway->process_payment('1001');
+        $merchant = $this->requestBody()['merchant'];
+
+        $this->assertStringStartsWith('https://relative.example.test/', $merchant['redirectConfirmUrl']);
+        $this->assertStringStartsWith('https://relative.example.test/', $merchant['redirectCancelUrl']);
+        $this->assertStringContainsString('order-received/1001/?key=', $merchant['redirectConfirmUrl']);
+        $this->assertStringContainsString('status=confirmed', $merchant['redirectConfirmUrl']);
+        $this->assertLogged('was not absolute');
+    }
+
+    public function test_a_relative_home_url_falls_back_to_site_url_for_the_host(): void
+    {
+        PF_State::$home_url = '/';
+        PF_State::$site_url = 'https://canonical.example.test/';
+
+        $gateway = $this->gateway();
+        $this->order();
+        $this->queueCreated();
+
+        $gateway->process_payment('1001');
+
+        $this->assertStringStartsWith(
+            'https://canonical.example.test/',
+            $this->requestBody()['merchant']['redirectConfirmUrl']
+        );
+    }
+
+    public function test_an_already_absolute_return_url_is_left_untouched(): void
+    {
+        $gateway = $this->gateway();
+        $order   = $this->order();
+        $this->queueCreated();
+
+        $gateway->process_payment('1001');
+
+        $this->assertStringStartsWith(
+            $order->get_checkout_order_received_url(),
+            $this->requestBody()['merchant']['redirectConfirmUrl']
+        );
+    }
+
+    public function test_a_protocol_relative_url_gets_an_explicit_scheme(): void
+    {
+        $gateway = $this->gateway();
+
+        $this->assertSame('https://example.test/order-received/1/', $gateway->make_url_absolute('//example.test/order-received/1/'));
+
+        PF_State::$is_ssl = false;
+        $this->assertSame('http://example.test/order-received/1/', $gateway->make_url_absolute('//example.test/order-received/1/'));
+    }
+
     /* --------------------------------------------------------------------- */
 
     public function test_stores_the_payflex_identifiers_and_environment_on_the_order(): void

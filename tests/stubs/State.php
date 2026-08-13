@@ -65,6 +65,17 @@ final class PF_State
 
     public static bool $is_checkout = false;
 
+    /**
+     * Base returned by home_url()/site_url(), with a trailing slash. Set to a
+     * relative value such as '/' to model a site where WP_HOME or a plugin has
+     * made home_url() root-relative.
+     */
+    public static string $home_url = 'https://example.test/';
+
+    public static string $site_url = 'https://example.test/';
+
+    public static bool $is_ssl = true;
+
     public static string $wp_version = '6.8.3';
 
     public static string $wc_version = '9.9.4';
@@ -119,6 +130,9 @@ final class PF_State
         self::$user_can       = false;
         self::$is_admin       = false;
         self::$is_checkout    = false;
+        self::$home_url       = 'https://example.test/';
+        self::$site_url       = 'https://example.test/';
+        self::$is_ssl         = true;
         self::$wp_version     = '6.8.3';
         self::$wc_version     = '9.9.4';
         self::$cart_total     = null;
@@ -137,6 +151,9 @@ final class PF_State
         $_GET  = [];
         $_POST = [];
         $_COOKIE = [];
+        // phpunit.xml seeds this; restore it so a test that overrides the host
+        // does not leak into the next one.
+        $_SERVER['HTTP_HOST'] = 'example.test';
     }
 
     /**

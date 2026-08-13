@@ -984,6 +984,76 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
     }
 
     /**
+     * Force a store URL to be absolute.
+     *
+     * Payflex validates redirectConfirmUrl / redirectCancelUrl as absolute URIs and
+     * rejects the whole /order/productSelect request with CRM006 ("The request is
+     * invalid.", empty errors array) when either one is relative. On some sites
+     * home_url() is root-relative - WP_HOME defined as '/', or a plugin filtering
+     * home_url / option_home to keep URLs portable - which makes WooCommerce's
+     * get_return_url() hand back '/order-received/123/?key=...'. That resolves fine
+     * in a browser and is unusable to Payflex, so rebuild the scheme and host.
+     *
+     * @param string $url Relative, protocol-relative or absolute URL
+     * @return string
+     */
+    public function make_url_absolute($url)
+    {
+        $url = (string)$url;
+
+        // Protocol-relative (//host/path) - Payflex needs an explicit scheme.
+        if (strpos($url, '//') === 0)
+        {
+            return (is_ssl() ? 'https:' : 'http:') . $url;
+        }
+
+        if (parse_url($url, PHP_URL_HOST))
+        {
+            return $url;
+        }
+
+        $origin = $this->get_store_origin();
+
+        if ($origin === '')
+        {
+            return $url;
+        }
+
+        return $origin . '/' . ltrim($url, '/');
+    }
+
+    /**
+     * The store's scheme://host[:port], for use when home_url() is relative.
+     *
+     * @return string Empty string if no host can be determined
+     */
+    private function get_store_origin()
+    {
+        foreach (array(home_url(), site_url()) as $candidate)
+        {
+            $parts = parse_url((string)$candidate);
+
+            if (!empty($parts['scheme']) AND !empty($parts['host']))
+            {
+                return $parts['scheme'] . '://' . $parts['host'] . (empty($parts['port']) ? '' : ':' . $parts['port']);
+            }
+        }
+
+        // Last resort: the host this request came in on.
+        if (!empty($_SERVER['HTTP_HOST']))
+        {
+            $host = wp_unslash($_SERVER['HTTP_HOST']);
+
+            if (preg_match('/^[A-Za-z0-9\.\-]+(:[0-9]+)?$/', $host))
+            {
+                return (is_ssl() ? 'https://' : 'http://') . $host;
+            }
+        }
+
+        return '';
+    }
+
+    /**
      * Process the payment and return the result
      * - redirects the customer to the pay page
      *
@@ -1089,9 +1159,17 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
         $OrderBodyObj->shipping->postcode     = (string)$order->get_shipping_postcode();
         $OrderBodyObj->description            = 'string';
         $OrderBodyObj->items                  = $objectItems;
+        $store_return_url = (string)$this->get_return_url($order);
+        $return_url       = $this->make_url_absolute($store_return_url);
+
+        if ($return_url !== $store_return_url)
+        {
+            $this->log('Order return URL was not absolute (' . $store_return_url . ') and was rebuilt as ' . $return_url . '. Payflex rejects relative redirect URLs with CRM006 - check for a WP_HOME setting or plugin making home_url() relative.', 'warning');
+        }
+
         $OrderBodyObj->merchant                     = new stdClass;
-        $OrderBodyObj->merchant->redirectConfirmUrl = (string)$this->get_return_url($order) . '&order_id=' . $order_id . '&status=confirmed&wc-api=WC_Gateway_PartPay';
-        $OrderBodyObj->merchant->redirectCancelUrl  = (string)$this->get_return_url($order) . '&status=cancelled';
+        $OrderBodyObj->merchant->redirectConfirmUrl = $return_url . '&order_id=' . $order_id . '&status=confirmed&wc-api=WC_Gateway_PartPay';
+        $OrderBodyObj->merchant->redirectCancelUrl  = $return_url . '&status=cancelled';
         $OrderBodyObj->merchantReference            = (string)$merchantRefe;
         $OrderBodyObj->taxAmount                    = $order->get_total_tax();
         $OrderBodyObj->shippingAmount               = $shipping_total;

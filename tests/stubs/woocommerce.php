@@ -173,9 +173,13 @@ class WC_Order
         return 'https://example.test/checkout/order-pay/' . $this->data->id . '/?key=' . $this->data->order_key;
     }
 
+    /**
+     * Core builds this from the checkout page permalink, which comes from
+     * home_url() - so it inherits a relative home_url() the same way.
+     */
     public function get_checkout_order_received_url()
     {
-        return 'https://example.test/checkout/order-received/' . $this->data->id . '/?key=' . $this->data->order_key;
+        return home_url('checkout/order-received/' . $this->data->id . '/?key=' . $this->data->order_key);
     }
 
     public function get_cancel_order_url($redirect = '')

@@ -311,7 +311,17 @@ function admin_url($path = '')
 
 function home_url($path = '')
 {
-    return 'https://example.test/' . ltrim($path, '/');
+    return PF_State::$home_url . ltrim($path, '/');
+}
+
+function site_url($path = '')
+{
+    return PF_State::$site_url . ltrim($path, '/');
+}
+
+function is_ssl()
+{
+    return PF_State::$is_ssl;
 }
 
 function get_bloginfo($show = '')
