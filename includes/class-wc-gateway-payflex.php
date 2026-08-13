@@ -913,46 +913,89 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
         return true;
     }
 
-    public function update_payment_limits()
+    public function update_payment_limits($force = false)
     {
-        // Get existing limits
-        $settings = get_payflex_option();
+        // Get existing limits and avoid unnecessary API calls. This method is
+        // invoked by checkout checks, the settings page and a two-minute cron.
+        $settings     = get_payflex_option();
+        $last_updated = isset($settings['payflex_limit_last_updated'])
+            ? (int) $settings['payflex_limit_last_updated']
+            : 0;
 
-        if (false === $this->apiKeysAvailable())
+        if (true !== $force && $last_updated > 0 && (time() - $last_updated) <= DAY_IN_SECONDS)
+        {
+            return true;
+        }
+
+        if (false === $this->apiKeysAvailable() || empty($this->configurationUrl))
         {
             return false;
         }
 
-        // $this->log('Updating payment limits requested');
-        if (!empty($this->configurationUrl))
+        // Prevent multiple PHP workers from refreshing the same configuration
+        // at the same time during checkout/AJAX requests.
+        $lock_key = 'payflex_payment_limits_update_lock';
+        if (get_transient($lock_key))
         {
-            $response = wp_remote_get($this->configurationUrl, array(
-                'headers' => array(
-                    'Authorization' => 'Bearer ' . $this->get_payflex_authorization_code()
-                )
-            ));
-            $body = json_decode(wp_remote_retrieve_body($response) , true);
-
-
-            // Remove old limits
-            if(isset($settings['payflex-amount-maximum'])) unset($settings['payflex-amount-maximum']);
-            if(isset($settings['payflex-amount-minimum'])) unset($settings['payflex-amount-minimum']);
-
-            if (!is_wp_error($response) && isset($response['response']['code']) && $response['response']['code'] == 200)
-            {
-                if($this->get_debug_mode()) $this->log('Updating payment limits');
-                
-                $settings['payflex_limit_amount_minimum']  = isset($body['minimumAmount']) ? $body['minimumAmount'] : 0;
-                $settings['payflex_limit_amount_maximum']  = isset($body['maximumAmount']) ? $body['maximumAmount'] : 0;
-                $settings['payflex_limit_refunds_enabled'] = isset($body['enabledForRefunds']) ? $body['enabledForRefunds'] : false;
-
-                $settings['payflex_limit_last_updated'] = time();
-            }
-
-            update_option('woocommerce_payflex_settings', $settings);
+            return false;
         }
+        set_transient($lock_key, 1, MINUTE_IN_SECONDS);
+
+        $authorization_code = $this->get_payflex_authorization_code();
+        if (!$authorization_code)
+        {
+            // Keep the short-lived lock as a retry backoff when authentication fails.
+            return false;
+        }
+
+        $response = wp_remote_get($this->configurationUrl, array(
+            'timeout'     => 5,
+            'redirection' => 3,
+            'headers'     => array(
+                'Authorization' => 'Bearer ' . $authorization_code
+            )
+        ));
+
+        if (is_wp_error($response))
+        {
+            // Keep the lock until it expires to prevent rapid retry loops.
+            return false;
+        }
+
+        $response_code = (int) wp_remote_retrieve_response_code($response);
+        $body          = json_decode(wp_remote_retrieve_body($response), true);
+
+        // Keep the last known working limits when Payflex returns an error or
+        // malformed response. This avoids disabling the gateway unnecessarily.
+        if (
+            200 !== $response_code ||
+            !is_array($body) ||
+            !isset($body['minimumAmount'], $body['maximumAmount'])
+        )
+        {
+            // Keep the lock until it expires to prevent rapid retry loops.
+            return false;
+        }
+
+        // Remove legacy keys only after a successful response.
+        if (isset($settings['payflex-amount-maximum'])) unset($settings['payflex-amount-maximum']);
+        if (isset($settings['payflex-amount-minimum'])) unset($settings['payflex-amount-minimum']);
+
+        $settings['payflex_limit_amount_minimum']  = $body['minimumAmount'];
+        $settings['payflex_limit_amount_maximum']  = $body['maximumAmount'];
+        $settings['payflex_limit_refunds_enabled'] = isset($body['enabledForRefunds']) ? (bool) $body['enabledForRefunds'] : false;
+        $settings['payflex_limit_last_updated']     = time();
+
+        update_option('woocommerce_payflex_settings', $settings);
+        delete_transient($lock_key);
         $this->init_settings();
 
+        if ($this->get_debug_mode())
+        {
+            $this->log('Updating payment limits');
+        }
+
+        return true;
     }
 
 
@@ -963,11 +1006,16 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
      */
     public function get_payflex_limits($field = false)
     {
-        if (!isset($settings['payflex_limit_last_updated']) || (time() - $settings['payflex_limit_last_updated']) > 86400) {
-            $this->update_payment_limits();
-        }
+        $settings     = get_payflex_option();
+        $last_updated = isset($settings['payflex_limit_last_updated'])
+            ? (int) $settings['payflex_limit_last_updated']
+            : 0;
 
-        $settings = get_payflex_option();
+        if (!$last_updated || (time() - $last_updated) > DAY_IN_SECONDS)
+        {
+            $this->update_payment_limits();
+            $settings = get_payflex_option();
+        }
 
         if($field)
         {
