@@ -254,6 +254,9 @@ add_action('payflex_do_cron_jobs', function (){
     # Make sure we're not running the cron job on the checkout page
     if(is_checkout()) return;
 
+    # There are no Payflex orders to reconcile in widget only mode
+    if(payflex_widget_only_enabled()) return;
+
     $gateway = WC_Gateway_Partpay::instance();
 
     $gateway->check_pending_abandoned_orders();
@@ -448,7 +451,7 @@ add_action('enqueue_block_editor_assets', 'payflex_block_vars');
 
 // Register the block
 function register_payflex_widget_block() {
-    if(payflex_enabled() == false) return;
+    if(payflex_widgets_enabled() == false) return;
 
     wp_register_script(
         'payflex-widget-block',
@@ -478,6 +481,9 @@ function render_payflex_widget_block($attributes) {
 
 function payflex_enabled()
 {
+    // Widget only mode deliberately leaves the gateway off
+    if(payflex_widget_only_enabled()) return false;
+
     // Check if gateway is enabled
     if(get_payflex_option('enabled') !== 'yes') return false;
 
@@ -501,9 +507,34 @@ function payflex_admin_only_enabled()
     return false;
 }
 
+/**
+ * Check if widget only mode is enabled, which shows the widgets without offering Payflex as a payment method.
+ */
+function payflex_widget_only_enabled()
+{
+    if(get_payflex_option('widget_only_mode') === 'yes') return true;
+
+    return false;
+}
+
+/**
+ * Check if the widgets may display, either because the gateway is enabled or because widget only mode is on.
+ */
+function payflex_widgets_enabled()
+{
+    if(payflex_enabled()) return true;
+
+    if(payflex_widget_only_enabled() == false) return false;
+
+    // Admin only mode still applies to the widgets
+    if(payflex_admin_only_enabled() AND !current_user_can('manage_options')) return false;
+
+    return true;
+}
+
 function payflex_product_widget_enabled()
 {
-    if(payflex_enabled() == false) return false;
+    if(payflex_widgets_enabled() == false) return false;
 
     if(get_payflex_option('enable_product_widget') === 'yes') return true;
 

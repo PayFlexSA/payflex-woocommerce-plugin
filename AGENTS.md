@@ -17,12 +17,12 @@ deploy via `.distignore`.
 
 ## What the tests cover
 
-297 tests across 15 suites.
+315 tests across 15 suites.
 
 | Suite | What it covers |
 | --- | --- |
 | `OptionsTest` | `get_payflex_option()`, including the corrupted-option guard |
-| `GatingTest` | `payflex_enabled()`, admin-only mode, product/checkout widget gates, environment detection |
+| `GatingTest` | `payflex_enabled()`, admin-only mode, widget-only mode, product/checkout widget gates, environment detection |
 | `ConfigTest` | `config/config.php` — required keys, HTTPS, no UAT hosts in production |
 | `WidgetTest` | Calculator widget markup, settings→attribute mapping, shortcode, Gutenberg block, variation price script |
 | `AuthenticationTest` | Token fetch, transient caching and early expiry, 401 and network failures, credential redaction in logs |

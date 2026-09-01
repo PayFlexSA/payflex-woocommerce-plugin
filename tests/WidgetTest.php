@@ -191,6 +191,22 @@ final class WidgetTest extends PF_TestCase
         $this->assertStringContainsString('payflexCalculatorWidgetContainer', $output);
     }
 
+    /**
+     * The point of widget only mode: the widget still renders on product pages
+     * for a store that has turned the gateway off.
+     */
+    public function test_widget_content_outputs_the_widget_in_widget_only_mode(): void
+    {
+        $this->set_settings(['enabled' => 'no', 'widget_only_mode' => 'yes', 'enable_product_widget' => 'yes']);
+        $this->withProduct(500.00);
+
+        ob_start();
+        widget_content();
+        $output = ob_get_clean();
+
+        $this->assertStringContainsString('payflexCalculatorWidgetContainer', $output);
+    }
+
     public function test_shortcode_returns_the_widget_markup(): void
     {
         $this->set_settings();

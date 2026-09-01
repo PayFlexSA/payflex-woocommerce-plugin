@@ -540,6 +540,17 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
                             <span class="">v<?=$WC->version?></span>
                         </td>
                     </tr>
+                    <?php if(payflex_widget_only_enabled()): ?>
+                    <tr>
+                        <td>Widget Only Mode:</td>
+                        <td>
+                            <span class="payflex_debug_warning">Enabled</span>
+                            <div class="payflex_info_text">
+                                Payflex is not offered as a payment method. Only the widget is active, so any API errors below are expected.
+                            </div>
+                        </td>
+                    </tr>
+                    <?php endif; ?>
                     <tr>
                         <td>PHP Version: </td>
                         <td>
@@ -1665,6 +1676,9 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
      */
     public function check_cart_within_limits($gateways)
     {
+        // Payflex is not offered as a payment method in widget only mode, so there is nothing to limit
+        if (payflex_widget_only_enabled()) return $gateways;
+
         global $woocommerce;
         $total = isset($woocommerce->cart->total) ? $woocommerce->cart->total : 0;
 

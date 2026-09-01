@@ -19,6 +19,7 @@ final class SettingsFormTest extends PF_TestCase
         'enable_product_widget',
         'enable_checkout_widget',
         'admin_only_enabled',
+        'widget_only_mode',
         'payflex_debug',
     ];
 
@@ -91,6 +92,7 @@ final class SettingsFormTest extends PF_TestCase
         $this->assertSame('yes', $fields['enable_product_widget']['default']);
         $this->assertSame('yes', $fields['enable_checkout_widget']['default']);
         $this->assertSame('no', $fields['admin_only_enabled']['default'], 'Admin-only must be opt-in');
+        $this->assertSame('no', $fields['widget_only_mode']['default'], 'Widget-only must be opt-in');
         $this->assertSame('no', $fields['payflex_debug']['default'], 'Debug output must be opt-in');
         $this->assertSame('4', $fields['pay_type']['default']);
     }

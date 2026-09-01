@@ -38,6 +38,13 @@ trait WC_Gateway_Payflex_Form_Fields
                 'label'   => __('Enable Payflex', 'woo_payflex'),
                 'default' => 'yes',
             ],
+            'widget_only_mode' => [
+                'title'       => __('Widget Only Mode', 'woo_payflex'),
+                'type'        => 'checkbox',
+                'label'       => __('Enable Widget Only Mode', 'woo_payflex'),
+                'default'     => 'no',
+                'description' => __('Show the Payflex widget on product pages without offering Payflex as a payment method. API credentials are not needed. For stores that already have their own Payflex integration.', 'woo_payflex'),
+            ],
             'title' => [
                 'title'       => __('Title', 'woo_payflex'),
                 'type'        => 'text',
@@ -51,6 +58,7 @@ trait WC_Gateway_Payflex_Form_Fields
                 'type'  => 'section_start',
                 'title' => __('API Credentials', 'woo_payflex'),
                 'icon'  => 'lock',
+                'class' => 'pf-section--credentials',
             ],
             'testmode' => [
                 'title'       => __('Environment', 'woo_payflex'),
@@ -290,6 +298,14 @@ trait WC_Gateway_Payflex_Form_Fields
             icon.classList.toggle('dashicons-hidden',    show);
         }
 
+        // Credentials and the checkout widget play no part in widget only mode
+        function pfUpdateWidgetOnlyMode() {
+            var widgetOnly = jQuery('#woocommerce_payflex_widget_only_mode').is(':checked');
+
+            jQuery('.pf-section--credentials').toggle(!widgetOnly);
+            jQuery('#woocommerce_payflex_enable_checkout_widget').closest('tr').toggle(!widgetOnly);
+        }
+
         function pfUpdateWidgetPreview() {
             var style   = jQuery('#woocommerce_payflex_widget_style').val();
             var theme   = jQuery('#woocommerce_payflex_widget_theme').val();
@@ -302,6 +318,9 @@ trait WC_Gateway_Payflex_Form_Fields
 
         jQuery(document).ready(function($) {
             pfUpdateWidgetPreview();
+            pfUpdateWidgetOnlyMode();
+
+            $(document).on('change', '#woocommerce_payflex_widget_only_mode', pfUpdateWidgetOnlyMode);
 
             $(document).on('change', '#woocommerce_payflex_widget_style, #woocommerce_payflex_widget_theme, #woocommerce_payflex_pay_type', pfUpdateWidgetPreview);
 

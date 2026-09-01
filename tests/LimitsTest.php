@@ -193,6 +193,22 @@ final class LimitsTest extends PF_TestCase
         $this->assertArrayHasKey('payflex', $gateway->check_cart_within_limits($this->gateways()));
     }
 
+    /**
+     * Widget only mode never offers the gateway, so the limits lookup - and the
+     * /configuration call behind it - must not run on cart and checkout loads.
+     */
+    public function test_widget_only_mode_skips_the_limits_check_entirely(): void
+    {
+        $gateway = $this->gateway(['widget_only_mode' => 'yes']);
+        $this->withLimits(50.0, 20000.0);
+        PF_State::$cart_total = 49.99;
+
+        $before = count(PF_State::requested_urls());
+
+        $this->assertArrayHasKey('payflex', $gateway->check_cart_within_limits($this->gateways()));
+        $this->assertCount($before, PF_State::requested_urls(), 'No API call should be made in widget only mode');
+    }
+
     public function test_gateway_is_removed_when_the_cart_total_is_below_the_minimum(): void
     {
         $gateway = $this->gateway();

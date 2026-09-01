@@ -23,6 +23,7 @@ abstract class PF_TestCase extends TestCase
         'enable_product_widget'   => 'yes',
         'enable_checkout_widget'  => 'yes',
         'admin_only_enabled'      => 'no',
+        'widget_only_mode'        => 'no',
         'payflex_debug'           => 'no',
     ];
 

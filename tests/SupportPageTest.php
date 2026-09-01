@@ -39,6 +39,20 @@ final class SupportPageTest extends PF_TestCase
         $this->assertStringContainsString('WooCommerce v' . PF_State::$wc_version, $output);
     }
 
+    public function test_it_flags_widget_only_mode_so_api_errors_are_not_misread(): void
+    {
+        $this->gateway(['widget_only_mode' => 'yes']);
+
+        $this->assertStringContainsString('Widget Only Mode:', $this->render());
+    }
+
+    public function test_it_does_not_mention_widget_only_mode_when_it_is_off(): void
+    {
+        $this->gateway();
+
+        $this->assertStringNotContainsString('Widget Only Mode:', $this->render());
+    }
+
     public function test_it_reports_the_configured_limits_and_refund_availability(): void
     {
         $this->gateway();

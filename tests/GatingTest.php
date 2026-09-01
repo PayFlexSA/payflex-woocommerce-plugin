@@ -71,6 +71,79 @@ final class GatingTest extends PF_TestCase
 
     /* --------------------------------------------------------------------- */
 
+    /**
+     * Widget only mode is for stores with their own Payflex integration: the
+     * widgets render, the gateway never appears at checkout.
+     */
+    public function test_widget_only_mode_disables_the_gateway(): void
+    {
+        $this->set_settings(['enabled' => 'yes', 'widget_only_mode' => 'yes']);
+
+        $this->assertTrue(payflex_widget_only_enabled());
+        $this->assertFalse(payflex_enabled());
+        $this->assertFalse($this->gateway(['widget_only_mode' => 'yes'])->is_available());
+    }
+
+    public function test_widget_only_mode_keeps_the_widgets_available(): void
+    {
+        $this->set_settings(['enabled' => 'yes', 'widget_only_mode' => 'yes']);
+
+        $this->assertTrue(payflex_widgets_enabled());
+        $this->assertTrue(payflex_product_widget_enabled());
+    }
+
+    /**
+     * The whole point is that a store can run the widget without credentials,
+     * so the main switch must not be a prerequisite.
+     */
+    public function test_widget_only_mode_works_with_the_gateway_switch_off(): void
+    {
+        $this->set_settings(['enabled' => 'no', 'widget_only_mode' => 'yes']);
+
+        $this->assertTrue(payflex_widgets_enabled());
+        $this->assertTrue(payflex_product_widget_enabled());
+        $this->assertFalse(payflex_enabled());
+    }
+
+    public function test_widget_only_mode_still_respects_its_own_widget_switch(): void
+    {
+        $this->set_settings(['widget_only_mode' => 'yes', 'enable_product_widget' => 'no']);
+
+        $this->assertFalse(payflex_product_widget_enabled());
+    }
+
+    public function test_widget_only_mode_still_respects_admin_only_mode(): void
+    {
+        $this->set_settings(['widget_only_mode' => 'yes', 'admin_only_enabled' => 'yes']);
+
+        PF_State::$user_can = false;
+        $this->assertFalse(payflex_widgets_enabled());
+
+        PF_State::$user_can = true;
+        $this->assertTrue(payflex_widgets_enabled());
+    }
+
+    public function test_widget_only_defaults_to_off(): void
+    {
+        $this->set_settings();
+
+        $this->assertFalse(payflex_widget_only_enabled());
+        $this->assertTrue(payflex_enabled());
+    }
+
+    /**
+     * 'widget_only_mode' is a checkbox field, so only the exact string 'yes' counts.
+     */
+    public function test_truthy_but_non_yes_values_do_not_enable_widget_only_mode(): void
+    {
+        foreach (['1', 'true', 'YES', 'on'] as $value) {
+            $this->set_settings(['widget_only_mode' => $value]);
+            $this->assertFalse(payflex_widget_only_enabled(), "'$value' should not enable widget only mode");
+        }
+    }
+
+    /* --------------------------------------------------------------------- */
+
     public function test_product_widget_requires_both_switches(): void
     {
         $this->set_settings(['enabled' => 'yes', 'enable_product_widget' => 'yes']);
