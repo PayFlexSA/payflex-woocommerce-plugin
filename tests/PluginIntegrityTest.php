@@ -123,6 +123,8 @@ final class PluginIntegrityTest extends PF_TestCase
     {
         $expected = [
             'config/config.php',
+            'includes/class-payflex-admin-products.php',
+            'includes/class-payflex-eligibility.php',
             'includes/class-payflex-woocommerce-block-checkout.php',
             'includes/class-wc-gateway-payflex.php',
             'includes/trait-wc-gateway-payflex-form-fields.php',
@@ -163,6 +165,7 @@ final class PluginIntegrityTest extends PF_TestCase
         $assets = [
             'assets/block.js',
             'assets/checkout.js',
+            'assets/payflex-eligibility.js',
             'assets/widget-icon.png',
             'Checkout.png',
             'PIE-CHART-01.png',

@@ -164,8 +164,9 @@ final class HooksTest extends PF_TestCase
 
         $handles = $blocks->get_payment_method_script_handles();
 
-        $this->assertSame(['wc-payflex-blocks-integration'], $handles);
+        $this->assertSame(['wc-payflex-blocks-integration', 'wc-payflex-eligibility'], $handles);
         $this->assertContains('wc-payflex-blocks-integration', array_column(PF_State::$scripts, 'handle'));
+        $this->assertContains('wc-payflex-eligibility', array_column(PF_State::$scripts, 'handle'));
     }
 
     public function test_the_block_checkout_script_file_exists(): void
@@ -262,6 +263,122 @@ final class HooksTest extends PF_TestCase
         $this->assertNotFalse(has_filter('woocommerce_available_payment_gateways', [$gateway, 'check_cart_within_limits']));
         $this->assertNotFalse(has_action('woocommerce_update_options_payment_gateways_payflex', [$gateway, 'process_admin_options']));
         $this->assertNotFalse(has_action('woocommerce_update_options_payment_gateways_payflex', [$gateway, 'on_save_settings']));
+    }
+
+    /**
+     * Both classic surfaces need the notice: the cart renders one, the checkout
+     * renders the other above the payment methods.
+     */
+    public function test_the_eligibility_notice_hooks_are_registered(): void
+    {
+        $callback = ['WC_Gateway_PartPay', 'render_eligibility_notice'];
+
+        $this->assertNotFalse(has_action('woocommerce_before_cart', $callback));
+        $this->assertNotFalse(has_action('woocommerce_review_order_before_payment', $callback));
+    }
+
+    /**
+     * The gateway is constructed more than once per request — WC_Payment_Gateways,
+     * the blocks integration and the singleton each build their own. An instance
+     * callback would be stored once per instance and print the notice again for
+     * each, so the registration lives in the bootstrap instead.
+     */
+    public function test_the_eligibility_notice_is_registered_once_however_many_gateways_exist(): void
+    {
+        $this->gateway();
+        $this->gateway();
+        WC_Gateway_PartPay::instance();
+
+        foreach (['woocommerce_before_cart', 'woocommerce_review_order_before_payment'] as $hook) {
+            $this->assertCount(
+                1,
+                $this->eligibility_callbacks($hook),
+                $hook . ' must hold exactly one eligibility notice callback'
+            );
+        }
+    }
+
+    /** Every registered callback on $hook that renders the eligibility notice. */
+    private function eligibility_callbacks(string $hook): array
+    {
+        $found = [];
+
+        foreach (PF_State::$hooks[$hook] ?? [] as $callbacks) {
+            foreach ($callbacks as $callback) {
+                if (is_array($callback) && ($callback[1] ?? '') === 'render_eligibility_notice') {
+                    $found[] = $callback;
+                }
+            }
+        }
+
+        return $found;
+    }
+
+    public function test_the_product_exclusion_panel_is_registered(): void
+    {
+        $this->assertNotFalse(has_action('woocommerce_product_options_general_product_data', 'payflex_product_exclusion_field'));
+        $this->assertNotFalse(has_action('woocommerce_process_product_meta', 'payflex_save_product_exclusion_field'));
+    }
+
+    public function test_the_product_exclusion_checkbox_is_rendered(): void
+    {
+        $this->set_settings();
+        PF_State::$current_post_id = 101;
+
+        ob_start();
+        payflex_product_exclusion_field();
+        ob_end_clean();
+
+        $this->assertCount(1, PF_State::$product_fields);
+        $this->assertSame(Payflex_Eligibility::PRODUCT_META, PF_State::$product_fields[0]['id']);
+    }
+
+    public function test_the_product_exclusion_checkbox_is_hidden_when_the_setting_is_off(): void
+    {
+        $this->set_settings(['enable_product_exclusions' => 'no']);
+
+        ob_start();
+        payflex_product_exclusion_field();
+        ob_end_clean();
+
+        $this->assertSame([], PF_State::$product_fields);
+    }
+
+    public function test_the_product_exclusion_checkbox_saves_yes_and_no(): void
+    {
+        $this->set_settings();
+
+        $_POST[Payflex_Eligibility::PRODUCT_META] = 'yes';
+        payflex_save_product_exclusion_field(101);
+        $this->assertSame('yes', get_post_meta(101, Payflex_Eligibility::PRODUCT_META, true));
+
+        unset($_POST[Payflex_Eligibility::PRODUCT_META]);
+        payflex_save_product_exclusion_field(101);
+        $this->assertSame('no', get_post_meta(101, Payflex_Eligibility::PRODUCT_META, true));
+    }
+
+    /**
+     * The Cart and Checkout blocks read eligibility off the Store API cart
+     * response, so the endpoint data has to be registered on woocommerce_blocks_loaded.
+     */
+    public function test_the_store_api_cart_eligibility_data_is_registered(): void
+    {
+        do_action('woocommerce_blocks_loaded');
+
+        $payflex = array_values(array_filter(
+            PF_State::$store_api_endpoints,
+            fn($args) => ($args['namespace'] ?? '') === 'payflex'
+        ));
+
+        $this->assertCount(1, $payflex);
+        $this->assertSame('cart', $payflex[0]['endpoint']);
+        $this->assertSame('payflex_cart_eligibility_data', $payflex[0]['data_callback']);
+        $this->assertSame('payflex_cart_eligibility_schema', $payflex[0]['schema_callback']);
+    }
+
+    public function test_the_block_eligibility_script_file_exists(): void
+    {
+        $this->assertFileExists(PAYFLEX_PLUGIN_ROOT . '/assets/payflex-eligibility.js');
     }
 
     /**

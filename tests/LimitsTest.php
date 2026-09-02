@@ -149,18 +149,11 @@ final class LimitsTest extends PF_TestCase
     }
 
     /**
-     * KNOWN DEFECT — characterisation test, not an endorsement.
-     *
-     * get_payflex_limits() tests $settings['payflex_limit_last_updated'] before
-     * $settings is assigned (the assignment is on the next line), so the
-     * staleness check is always true and every call re-hits /configuration.
-     * The 86400-second cache it intends to implement never takes effect.
-     *
-     * get_payflex_limits() is called from check_cart_within_limits(), which
-     * runs on the woocommerce_available_payment_gateways filter — i.e. on cart
-     * and checkout page loads.
+     * get_payflex_limits() runs on the woocommerce_available_payment_gateways
+     * filter, i.e. on every cart and checkout page load, so a cache miss is a
+     * synchronous outbound request on a page the shopper is waiting for.
      */
-    public function test_get_limits_refreshes_from_the_api_on_every_call(): void
+    public function test_get_limits_uses_the_cache_within_24_hours(): void
     {
         $gateway = $this->gateway();
         $this->withLimits(50.0, 20000.0);
@@ -169,12 +162,143 @@ final class LimitsTest extends PF_TestCase
         $gateway->get_payflex_limits();
         $gateway->get_payflex_limits();
 
-        $configuration_calls = array_filter(
+        $this->assertCount(0, $this->configurationCalls(), 'A fresh cache must not be refreshed');
+    }
+
+    public function test_get_limits_refreshes_when_the_cache_is_stale(): void
+    {
+        $gateway = $this->gateway();
+        $this->withLimits(50.0, 20000.0);
+        $this->ageTheLimitCache(86401);
+
+        $gateway->get_payflex_limits();
+        $gateway->get_payflex_limits();
+
+        $this->assertCount(1, $this->configurationCalls(), 'A stale cache is refreshed once, then cached again');
+    }
+
+    public function test_get_limits_refreshes_when_nothing_has_ever_been_stored(): void
+    {
+        $gateway = $this->gateway();
+        PF_State::stub_json(200, ['minimumAmount' => 50.0, 'maximumAmount' => 20000.0], '/configuration');
+
+        $gateway->get_payflex_limits();
+
+        $this->assertCount(1, $this->configurationCalls());
+    }
+
+    /**
+     * Every attempt is stamped, not just a 200, so an endpoint that is down is
+     * not re-hit on every cart and checkout load.
+     */
+    public function test_a_failed_refresh_is_not_retried_on_the_next_call(): void
+    {
+        $gateway = $this->gateway();
+        $this->withLimits(50.0, 20000.0);
+        $this->ageTheLimitCache(86401);
+        PF_State::$http_standing = [];
+        PF_State::stub_json(500, [], '/configuration');
+
+        $gateway->get_payflex_limits();
+        $gateway->get_payflex_limits();
+        $gateway->get_payflex_limits();
+
+        $this->assertCount(1, $this->configurationCalls(), 'A failing endpoint must not be hammered');
+    }
+
+    /**
+     * A failure must not be recorded as a successful refresh. Stamping the full
+     * interval on one leaves a fresh install — which has no limits stored at all
+     * — reporting every cart as inside them until the next day.
+     */
+    public function test_a_failed_refresh_does_not_count_as_a_successful_one(): void
+    {
+        $gateway = $this->gateway();
+        PF_State::$http_standing = [];
+        PF_State::stub_json(500, [], '/configuration');
+
+        $gateway->update_payment_limits();
+
+        $settings = get_option('woocommerce_payflex_settings', []);
+
+        $this->assertArrayNotHasKey('payflex_limit_last_updated', $settings);
+        $this->assertArrayHasKey('payflex_limit_last_attempt', $settings, 'The attempt still has to back off');
+    }
+
+    /**
+     * With no limits ever stored, nothing is enforced until a refresh succeeds,
+     * so the backoff after a failure has to be short rather than a full day.
+     */
+    public function test_a_failed_refresh_is_retried_once_the_backoff_expires(): void
+    {
+        $gateway = $this->gateway();
+        PF_State::$http_standing = [];
+        PF_State::stub_json(500, [], '/configuration');
+
+        $gateway->get_payflex_limits();
+        $this->ageTheRetryBackoff(WC_Gateway_PartPay::LIMIT_RETRY_INTERVAL + 1);
+        $gateway->get_payflex_limits();
+
+        $this->assertCount(2, $this->configurationCalls());
+        $this->assertLessThan(
+            WC_Gateway_PartPay::LIMIT_REFRESH_INTERVAL,
+            WC_Gateway_PartPay::LIMIT_RETRY_INTERVAL,
+            'A failure must back off for less than a success does'
+        );
+    }
+
+    /**
+     * Without credentials there is nothing to ask, but the attempt still has to
+     * be recorded or every get_payflex_limits() call re-enters the refresh.
+     */
+    public function test_a_refresh_without_credentials_still_backs_off(): void
+    {
+        $gateway = $this->gateway(['client_id' => '', 'client_secret' => '']);
+
+        $this->assertFalse($gateway->update_payment_limits());
+
+        $settings = get_option('woocommerce_payflex_settings', []);
+
+        $this->assertArrayHasKey('payflex_limit_last_attempt', $settings);
+    }
+
+    /** Pushes the stored retry backoff $seconds into the past. */
+    private function ageTheRetryBackoff(int $seconds): void
+    {
+        $settings = get_option('woocommerce_payflex_settings', []);
+        $settings['payflex_limit_last_attempt'] = time() - $seconds;
+        update_option('woocommerce_payflex_settings', $settings);
+    }
+
+    public function test_a_failed_refresh_leaves_the_cached_limits_readable(): void
+    {
+        $gateway = $this->gateway();
+        $this->withLimits(50.0, 20000.0);
+        $this->ageTheLimitCache(86401);
+        PF_State::$http_standing = [];
+        PF_State::stub_json(500, [], '/configuration');
+
+        $this->assertSame([
+            'minimum'         => 50.0,
+            'maximum'         => 20000.0,
+            'refunds_enabled' => true,
+        ], $gateway->get_payflex_limits());
+    }
+
+    /** Pushes the stored refresh timestamp $seconds into the past. */
+    private function ageTheLimitCache(int $seconds): void
+    {
+        $settings = get_option('woocommerce_payflex_settings', []);
+        $settings['payflex_limit_last_updated'] = time() - $seconds;
+        update_option('woocommerce_payflex_settings', $settings);
+    }
+
+    private function configurationCalls(): array
+    {
+        return array_filter(
             PF_State::requested_urls(),
             fn($url) => str_contains($url, '/configuration')
         );
-
-        $this->assertCount(3, $configuration_calls, 'The 24h limit cache is not being honoured');
     }
 
     /* --------------------------------------------------------------------- */

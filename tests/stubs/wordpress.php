@@ -235,6 +235,75 @@ function delete_post_meta($post_id, $key, $value = '')
     return true;
 }
 
+function get_terms($args = [])
+{
+    PF_State::$term_queries[] = $args;
+
+    $taxonomy = is_array($args) ? ($args['taxonomy'] ?? '') : $args;
+
+    return PF_State::$terms[$taxonomy] ?? [];
+}
+
+/**
+ * Records the query and hands back whatever the test lined up. The plugin only
+ * ever asks for ids, so the shape of a post object does not matter here.
+ */
+function get_posts($args = [])
+{
+    PF_State::$post_queries[] = $args;
+
+    return PF_State::$post_query_result;
+}
+
+function get_ancestors($object_id, $object_type = '', $resource_type = '')
+{
+    return PF_State::$term_ancestors[$object_id . '|' . $object_type] ?? [];
+}
+
+/**
+ * Records the query the same way get_posts() does, so the counting queries stay
+ * visible to the tests that pin them.
+ *
+ * found_posts is the row count the real query computes when no_found_rows is
+ * off, which is what the plugin reads instead of loading every id.
+ */
+class WP_Query
+{
+    public array $query_vars = [];
+    public array $posts = [];
+    public int $found_posts = 0;
+
+    /** Real WP_Query answers this for every query; only the main one is true. */
+    public bool $is_main_query = true;
+
+    public function __construct($args = [])
+    {
+        if ($args !== []) $this->query($args);
+    }
+
+    public function query($args)
+    {
+        $this->query_vars = $args;
+
+        PF_State::$post_queries[] = $args;
+
+        $this->posts       = PF_State::$post_query_result;
+        $this->found_posts = count(PF_State::$post_query_result);
+
+        return $this->posts;
+    }
+
+    public function is_main_query()
+    {
+        return $this->is_main_query;
+    }
+}
+
+function get_the_ID()
+{
+    return PF_State::$current_post_id;
+}
+
 function get_comments($args = [])
 {
     return [];

@@ -193,6 +193,30 @@ final class GatingTest extends PF_TestCase
         $this->assertFalse(payflex_checkout_widget_enabled());
     }
 
+    public function test_checkout_widget_hidden_when_the_cart_holds_an_ineligible_product(): void
+    {
+        $this->gateway(['enable_checkout_widget' => 'yes']);
+        $this->withLimits(50.0, 20000.0);
+        PF_State::$cart_total = 750.0;
+        PF_State::$cart_items = [
+            'item-0' => ['data' => new WC_Product(101, 'SKU-101', 750.00, 'subscription'), 'quantity' => 1],
+        ];
+
+        $this->assertFalse(payflex_checkout_widget_enabled());
+    }
+
+    public function test_checkout_widget_shown_when_every_cart_product_is_eligible(): void
+    {
+        $this->gateway(['enable_checkout_widget' => 'yes']);
+        $this->withLimits(50.0, 20000.0);
+        PF_State::$cart_total = 750.0;
+        PF_State::$cart_items = [
+            'item-0' => ['data' => new WC_Product(101, 'SKU-101', 750.00), 'quantity' => 1],
+        ];
+
+        $this->assertTrue(payflex_checkout_widget_enabled());
+    }
+
     public function test_checkout_widget_hidden_when_its_own_switch_is_off(): void
     {
         $this->gateway(['enable_checkout_widget' => 'no']);

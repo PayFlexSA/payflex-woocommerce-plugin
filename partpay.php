@@ -92,6 +92,28 @@ function get_payflex_option($option = FALSE)
     return $payflex_settings;
 }
 
+/**
+ * Writes defaults for settings added after the plugin was installed.
+ */
+function payflex_backfill_new_settings()
+{
+    $settings = get_payflex_option();
+
+    // A store with no settings at all is a fresh install, init_settings() applies the defaults there
+    if(empty($settings)) return;
+
+    $defaults = [
+        'exclude_subscriptions'     => 'yes',
+        'enable_product_exclusions' => 'yes',
+        'excluded_product_cats'     => [],
+    ];
+
+    $missing = array_diff_key($defaults, $settings);
+
+    if(empty($missing)) return;
+
+    update_option('woocommerce_payflex_settings', array_merge($settings, $missing));
+}
 
 
 function payflex_plugin_basename()
@@ -111,7 +133,21 @@ add_action('plugins_loaded', function(){
     // Base plugin directory
     define('PAYFLEX_PLUGIN_DIR', plugin_dir_path(__FILE__));
 
+    require_once( PAYFLEX_PLUGIN_DIR . 'includes/class-payflex-eligibility.php' );
+    require_once( PAYFLEX_PLUGIN_DIR . 'includes/class-payflex-admin-products.php' );
     require_once( plugin_basename( 'includes/class-wc-gateway-payflex.php' ) );
+
+    payflex_backfill_new_settings();
+
+    Payflex_Admin_Products::register();
+
+    // Tell the shopper why Payflex is missing on the classic cart and checkout.
+    //
+    // Registered here rather than in the gateway constructor because the gateway
+    // is built more than once per request, and an instance callback would then
+    // be stored several times over and print the notice twice or three times.
+    add_action('woocommerce_before_cart', ['WC_Gateway_PartPay', 'render_eligibility_notice']);
+    add_action('woocommerce_review_order_before_payment', ['WC_Gateway_PartPay', 'render_eligibility_notice']);
 
     add_filter('woocommerce_payment_gateways', 'woocommerce_add_payflex_gateway');
 }, 0);
@@ -219,6 +255,51 @@ add_action('before_woocommerce_init', 'declare_cart_checkout_blocks_compatibilit
 // });
 
 // Hook the custom function to the 'woocommerce_blocks_loaded' action
+
+// Eligibility travels to the Cart and Checkout blocks on the Store API cart response
+add_action('woocommerce_blocks_loaded', function()
+{
+    if(!function_exists('woocommerce_store_api_register_endpoint_data')) return;
+
+    woocommerce_store_api_register_endpoint_data([
+        'endpoint'        => Automattic\WooCommerce\StoreApi\Schemas\V1\CartSchema::IDENTIFIER,
+        'namespace'       => 'payflex',
+        'data_callback'   => 'payflex_cart_eligibility_data',
+        'schema_callback' => 'payflex_cart_eligibility_schema',
+    ]);
+});
+
+/**
+ * Eligibility payload added to the Store API cart response.
+ */
+function payflex_cart_eligibility_data()
+{
+    $eligibility = Payflex_Eligibility::evaluate_cart();
+
+    return [
+        'eligible' => (bool)$eligibility['eligible'],
+        'message'  => (string)$eligibility['message'],
+    ];
+}
+
+/**
+ * Schema for the Store API cart eligibility payload.
+ */
+function payflex_cart_eligibility_schema()
+{
+    return [
+        'eligible' => [
+            'description' => __('Whether the cart can be paid for with Payflex.', 'woo_payflex'),
+            'type'        => 'boolean',
+            'readonly'    => true,
+        ],
+        'message' => [
+            'description' => __('Why Payflex is unavailable for this cart.', 'woo_payflex'),
+            'type'        => 'string',
+            'readonly'    => true,
+        ],
+    ];
+}
 
 add_action( 'woocommerce_blocks_loaded', 'oawoo_register_order_approval_payment_method_type' );
 /**
@@ -340,10 +421,14 @@ function widget_content()
 
     if(payflex_product_widget_enabled() == false) return;
 
-    global $payflex_product_page_widget_displayed;
-    $payflex_product_page_widget_displayed = true;
+    $widget = woo_payflex_frontend_widget();
 
-    echo woo_payflex_frontend_widget();
+    // An ineligible product returns nothing, so there is no widget to echo.
+    // woo_payflex_frontend_widget() is the single writer of
+    // $payflex_product_page_widget_displayed and has already set it by here.
+    if(!$widget) return;
+
+    echo $widget;
 
 }
 global $wp_version;
@@ -370,7 +455,8 @@ function woo_payflex_frontend_widget($amount = false)
 
     $payflex_settings = get_payflex_option();
 
-    if ($product->get_type() === 'subscription') return;
+    // Payflex cannot be used for this product, so the widget does not show at all
+    if(!Payflex_Eligibility::is_product_eligible($product)) return;
 
     if(!$amount){
 
@@ -435,6 +521,34 @@ function woo_payflex_frontend_widget($amount = false)
 
 // Register support page. This needs to be outside the class otherwise it won't be called soon enough
 add_action('admin_menu', ['WC_Gateway_PartPay', 'register_support_page']);
+
+
+// Payflex exclusion checkbox on the product data panel
+add_action('woocommerce_product_options_general_product_data', 'payflex_product_exclusion_field');
+function payflex_product_exclusion_field()
+{
+    if(get_payflex_option('enable_product_exclusions') === 'no') return;
+
+    echo '<div class="options_group">';
+
+    woocommerce_wp_checkbox([
+        'id'          => Payflex_Eligibility::PRODUCT_META,
+        'value'       => get_post_meta(get_the_ID(), Payflex_Eligibility::PRODUCT_META, true),
+        'label'       => __('Exclude from Payflex', 'woo_payflex'),
+        'description' => __('Hide Payflex as a payment option when this product is in the cart.', 'woo_payflex'),
+    ]);
+
+    echo '</div>';
+}
+
+// WooCommerce verifies the nonce before firing this, so no extra check is needed
+add_action('woocommerce_process_product_meta', 'payflex_save_product_exclusion_field');
+function payflex_save_product_exclusion_field($post_id)
+{
+    if(get_payflex_option('enable_product_exclusions') === 'no') return;
+
+    update_post_meta($post_id, Payflex_Eligibility::PRODUCT_META, isset($_POST[Payflex_Eligibility::PRODUCT_META]) ? 'yes' : 'no');
+}
 
 
 // Payflex JS payflexBlockVars
@@ -543,19 +657,10 @@ function payflex_product_widget_enabled()
 
 function payflex_checkout_widget_enabled()
 {
-
     if(payflex_enabled() == false) return false;
-    // Check if cart total is within payment limits
-    if (WC()->cart) {
-        $cart_total = WC()->cart->get_total('edit');
-        $gateway = WC_Gateway_PartPay::instance();
-        $min_amount = $gateway->get_payflex_limits('amount_minimum');
-        $max_amount = $gateway->get_payflex_limits('amount_maximum');
-        
-        if ($cart_total < $min_amount || $cart_total > $max_amount) {
-            return false;
-        }
-    }
+
+    // No cart means there is nothing to measure, so the widget stays available
+    if(WC()->cart AND Payflex_Eligibility::evaluate_cart()['eligible'] === false) return false;
 
     if(get_payflex_option('enable_checkout_widget') === 'yes') return true;
 
@@ -591,6 +696,8 @@ function payflex_update_price_on_variation() {
     $debug_mode = $payflex->get_debug_mode();
 
     if(!$product) return;
+
+    if(!Payflex_Eligibility::is_product_eligible($product)) return;
 
         ?>
         <script>

@@ -21,12 +21,37 @@ final class WidgetTest extends PF_TestCase
         $this->assertNull(woo_payflex_frontend_widget());
     }
 
-    public function test_returns_nothing_for_subscription_products(): void
+    /**
+     * A product Payflex cannot be used for gets no widget at all, rather than a
+     * widget that reports its own unavailability to the hosted script.
+     */
+    public function test_an_ineligible_product_gets_no_widget(): void
     {
         $this->set_settings();
         $this->withProduct(500.00, 'subscription');
 
-        $this->assertNull(woo_payflex_frontend_widget());
+        $this->assertEmpty(woo_payflex_frontend_widget());
+    }
+
+    public function test_an_eligible_product_gets_the_widget_with_no_eligibility_flag(): void
+    {
+        $this->set_settings();
+        $this->withProduct(500.00);
+
+        $html = woo_payflex_frontend_widget();
+
+        $this->assertStringContainsString('class="payflexCalculatorWidgetContainer"', $html);
+        $this->assertStringNotContainsString('eligible=', $html);
+        $this->assertStringNotContainsString('data-eligible', $html);
+    }
+
+    public function test_a_merchant_excluded_product_gets_no_widget(): void
+    {
+        $this->set_settings();
+        $product = $this->withProduct(500.00);
+        $product->meta[Payflex_Eligibility::PRODUCT_META] = 'yes';
+
+        $this->assertEmpty(woo_payflex_frontend_widget());
     }
 
     public function test_renders_the_widget_container_and_script(): void
@@ -192,6 +217,22 @@ final class WidgetTest extends PF_TestCase
     }
 
     /**
+     * Nothing is rendered and the flag stays down, so a theme fallback and the
+     * variation price script both know there is no widget on the page.
+     */
+    public function test_widget_content_outputs_nothing_for_an_ineligible_product(): void
+    {
+        $this->set_settings(['enable_product_widget' => 'yes']);
+        $this->withProduct(500.00, 'subscription');
+
+        ob_start();
+        widget_content();
+
+        $this->assertSame('', ob_get_clean());
+        $this->assertFalse($GLOBALS['payflex_product_page_widget_displayed']);
+    }
+
+    /**
      * The point of widget only mode: the widget still renders on product pages
      * for a store that has turned the gateway off.
      */
@@ -268,6 +309,20 @@ final class WidgetTest extends PF_TestCase
         $output = ob_get_clean();
 
         $this->assertStringContainsString('var debug_mode = true;', $output);
+    }
+
+    /**
+     * There is no widget on the page for an ineligible product, so the script
+     * has nothing to update.
+     */
+    public function test_variation_price_script_is_suppressed_for_an_ineligible_product(): void
+    {
+        $this->gateway(['enable_product_widget' => 'yes']);
+        $this->withProduct(500.00, 'subscription');
+
+        ob_start();
+        payflex_update_price_on_variation();
+        $this->assertSame('', ob_get_clean());
     }
 
     public function test_variation_price_script_is_suppressed_when_the_widget_is_disabled(): void

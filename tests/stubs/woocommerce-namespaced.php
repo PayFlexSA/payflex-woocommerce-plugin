@@ -84,3 +84,11 @@ namespace Automattic\WooCommerce\Blocks\Payments {
         }
     }
 }
+
+namespace Automattic\WooCommerce\StoreApi\Schemas\V1 {
+
+    class CartSchema
+    {
+        const IDENTIFIER = 'cart';
+    }
+}

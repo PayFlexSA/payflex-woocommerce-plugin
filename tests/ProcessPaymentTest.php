@@ -459,6 +459,41 @@ final class ProcessPaymentTest extends PF_TestCase
     }
 
     /**
+     * An order Payflex has already approved keeps its own handling even if one of
+     * its lines has since become ineligible. Refusing it as ineligible instead
+     * would lose the reconciliation path for an order with money against it.
+     */
+    public function test_an_ineligible_line_does_not_pre_empt_the_already_approved_guard(): void
+    {
+        $gateway = $this->gateway();
+        $order   = $this->order(['meta' => ['_payflex_order_id' => 'PF-EXISTING']]);
+        PF_State::$products[101] = new WC_Product(101, 'SKU-101', 500.00, 'subscription', 'Monthly Box');
+        PF_State::queue_json(200, ['orderStatus' => 'Approved', 'orderId' => 'PF-EXISTING'], '/order/PF-EXISTING');
+
+        $this->assertNull($gateway->process_payment('1001'));
+        $this->assertNotice('already been approved by Payflex');
+        $this->assertSame('approved', $order->get_meta('_payflex_workflow_status'));
+    }
+
+    /**
+     * Once a declined attempt has been cleared the order is on its way to a new
+     * Payflex payment, so it has to be eligible for one.
+     */
+    public function test_a_retry_after_a_declined_attempt_is_refused_when_a_line_became_ineligible(): void
+    {
+        $gateway = $this->gateway();
+        $this->order(['meta' => ['_payflex_order_id' => 'PF-OLD']]);
+        PF_State::$products[101] = new WC_Product(101, 'SKU-101', 500.00, 'subscription', 'Monthly Box');
+        PF_State::queue_json(200, ['orderStatus' => 'Declined', 'orderId' => 'PF-OLD'], '/order/PF-OLD');
+
+        $result = $gateway->process_payment('1001');
+
+        $this->assertSame('failure', $result['result']);
+        $this->assertStringContainsString('Monthly Box', $result['message']);
+        $this->assertSame([], array_filter(PF_State::requested_urls(), fn($u) => str_contains($u, 'productSelect')));
+    }
+
+    /**
      * A declined or abandoned attempt should not lock the shopper out — the
      * stale identifiers are cleared and a fresh Payflex order is created.
      */

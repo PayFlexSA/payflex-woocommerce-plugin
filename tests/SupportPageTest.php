@@ -179,10 +179,29 @@ final class SupportPageTest extends PF_TestCase
         $this->gateway();
         $this->withLimits();
 
+        $settings = get_payflex_option();
+        unset($settings['client_secret']);
+        update_option('woocommerce_payflex_settings', $settings);
+
         $output = $this->render();
 
         $this->assertStringContainsString('Missing or incorrectly saved settings', $output);
-        $this->assertStringContainsString('section_general_start', $output);
+        $this->assertStringContainsString('client_secret', $output);
+    }
+
+    /**
+     * Section markers and the widget preview are never saved, so reporting them
+     * would tell every merchant their settings are broken.
+     */
+    public function test_it_does_not_report_rows_that_hold_no_value(): void
+    {
+        $this->gateway();
+        $this->withLimits();
+
+        $output = $this->render();
+
+        $this->assertStringContainsString('All settings appear to be saved correctly', $output);
+        $this->assertStringNotContainsString('section_general_start', $output);
     }
 
     /* --------------------------------------------------------------------- */

@@ -17,7 +17,7 @@ deploy via `.distignore`.
 
 ## What the tests cover
 
-315 tests across 15 suites.
+414 tests across 17 suites.
 
 | Suite | What it covers |
 | --- | --- |
@@ -27,12 +27,14 @@ deploy via `.distignore`.
 | `WidgetTest` | Calculator widget markup, settings→attribute mapping, shortcode, Gutenberg block, variation price script |
 | `AuthenticationTest` | Token fetch, transient caching and early expiry, 401 and network failures, credential redaction in logs |
 | `LimitsTest` | `/configuration` fetch, limit persistence, `check_cart_within_limits()` boundaries |
+| `EligibilityTest` | `Payflex_Eligibility` product/cart/order rules, the shopper message, gateway removal, `process_payment()` refusal, the Store API cart payload, settings backfill |
 | `OrderMetaTest` | Payflex order id/token reads including pre-HPOS fallbacks, workflow status, gateway helpers |
 | `ProcessPaymentTest` | The full `/order/productSelect` payload, meta written on success, every error branch, re-checkout guards |
 | `PaymentCallbackTest` | The return-from-Payflex flow: approve/decline/abandon, replay protection, forged-status and amount-mismatch rejection |
 | `RefundTest` | Refund request shape, success/404/500 handling, the `MRM007` refunds-disabled path, the `woocommerce_order_status_refunded` hook |
 | `CronTest` | Queue windows (new / scheduled / all), status reconciliation, duplicate-note suppression, scheduling and teardown |
-| `SettingsFormTest` | Field definitions, custom renderers, credential trimming on save, checkout instalment breakdown |
+| `SettingsFormTest` | Field definitions, custom renderers, the exclusion count rows, credential trimming on save, checkout instalment breakdown |
+| `AdminProductsTest` | The products list column and Payflex status filter, and the exclusion counts the settings screen reports |
 | `HooksTest` | Gateway registration, HPOS/blocks compatibility flags, block checkout integration, cancel-on-Payflex handler |
 | `SupportPageTest` | The support screen renders and reports accurately; `redirect_url` open-redirect rejection |
 | `PluginIntegrityTest` | Version consistency across three files, syntax, referenced assets exist, `.distignore` completeness |
@@ -51,6 +53,95 @@ deploy via `.distignore`.
   files exist and are registered, because `filemtime()` on a missing asset is a
   PHP warning.
 - **Rendered CSS/visual output.** Markup is asserted, appearance is not.
+
+---
+
+## Eligibility
+
+`Payflex_Eligibility` (`includes/class-payflex-eligibility.php`) is the single
+place that decides whether Payflex may be used. Everything else asks it:
+
+| Caller | Method | Effect |
+| --- | --- | --- |
+| `check_cart_within_limits()` on `woocommerce_available_payment_gateways` | `evaluate_cart()` | Removes `payflex` from the gateway list. This one filter covers the classic checkout, the Cart/Checkout blocks and the Store API, because the blocks intersect their payment methods with the Store API cart's `payment_methods`. |
+| `process_payment()` | `evaluate_order($order)` | Refuses a payment whose order picked up an ineligible line after the page was rendered. Product rules only — WooCommerce re-runs the gateway filter on submission, so the amount limits have already been applied to the cart, and an order placed inside the limits should stay payable if the merchant later changes them. |
+| `woo_payflex_frontend_widget()` | `is_product_eligible()` | Returns nothing, so the product page, the `[payflex_widget]` shortcode and the Gutenberg block all render no widget. `payflex_update_price_on_variation()` bails on the same check, since there is no widget left to update. |
+| `payflex_checkout_widget_enabled()` | `evaluate_cart()` | Hides the checkout instalment stepper. |
+| `payflex_cart_eligibility_data()` | `evaluate_cart()` | Ships `eligible` and `message` on the Store API cart response, which `assets/payflex-eligibility.js` renders through `ExperimentalOrderMeta`. That script registers once per block scope (`woocommerce-cart` *and* `woocommerce-checkout`) — a plugin only fills the slots of the scope it was registered for, so one registration leaves the other block silent. |
+| `render_eligibility_notice()` | `evaluate_cart()` | Prints the reason on the classic cart and checkout. Static, and registered from the `plugins_loaded` bootstrap in `partpay.php` rather than the gateway constructor — see the double-instantiation note below. |
+
+Three details are easy to get wrong:
+
+- **Category exclusions cover children.** `excluded_by_category()` adds every
+  ancestor of the product's own terms before intersecting, because
+  `wc_get_product_term_ids()` returns only directly assigned terms while the
+  settings count's `tax_query` leaves `include_children` at the WP default of
+  true. Excluding a parent category has to mean the same thing on both sides.
+- **The amount limits are read once per request.** `Payflex_Eligibility::limits()`
+  memoises them, and `check_cart_within_limits()` calls `use_gateway($this)` first.
+  Resolving `WC_Gateway_PartPay::instance()` from inside
+  `woocommerce_available_payment_gateways` constructs a second gateway, whose
+  constructor adds that same callback to the hook being iterated.
+- **A failed limits refresh is not a successful one.**
+  `payflex_limit_last_updated` is stamped only on a 200 and holds for
+  `LIMIT_REFRESH_INTERVAL`; every attempt stamps `payflex_limit_last_attempt`,
+  which backs off for the much shorter `LIMIT_RETRY_INTERVAL`. Treating a failure
+  as fresh would leave an install that has never stored limits reporting every
+  cart as inside them for a whole day.
+
+Two polarities are deliberate and are pinned by tests: **no cart** counts as a
+zero total and *removes* the gateway (`EligibilityTest::test_no_cart_is_treated_as_a_zero_total`),
+but *enables* the checkout widget (`GatingTest::test_checkout_widget_enabled_when_there_is_no_cart`).
+
+Filters: `payflex_ineligible_product_types`, `payflex_product_reason`,
+`payflex_eligibility_result`. Note that `PF_State::reset()` deliberately keeps
+`$hooks`, so a test that adds one must restore the registry — see
+`EligibilityTest::withFilter()`.
+
+`Payflex_Admin_Products` (`includes/class-payflex-admin-products.php`) is the admin
+side of the same feature: the products list column and status filter, and the two counts
+the settings screen shows. It covers the per product checkbox only — category and
+subscription exclusions are not editable from a product, so showing them there would be
+misleading.
+
+Two things about that class are load-bearing and easy to undo by accident:
+
+- **The column needs an explicit width.** `render_column_style()` prints
+  `.column-payflex_excluded{width:150px}` on `admin_head-edit.php`. The list table uses
+  `table-layout: fixed` and every other column already claims a width, so without it the
+  column collapses to zero and the header label wraps one character per line — a 550px
+  tall header that pushes the product list off screen.
+- **The counts are gated to the settings screen.** They are appended to the
+  `description` of `enable_product_exclusions` and `excluded_product_cats` so they render
+  inside the same block as the setting they describe, which means they are built in
+  `form_fields()` — and that runs from the gateway constructor on *every* admin request.
+  `on_settings_screen()` (`page=wc-settings`) keeps the counting queries off every
+  other page. The `get_terms()` call behind the *Excluded Categories* dropdown is gated
+  on the same check, for the same reason.
+  `SettingsFormTest::test_no_products_are_counted_away_from_the_settings_screen` and
+  `test_no_categories_are_queried_away_from_the_settings_screen` pin it.
+- **The counts are totals, not lists.** `count_products()` runs a `WP_Query` with
+  `posts_per_page => 1` and reads `found_posts`. Asking for every id with
+  `posts_per_page => -1` and `count()`ing it pulls a whole catalogue into memory to
+  render one number. `COUNTED_STATUSES` includes `future`, because scheduled products
+  appear in the products list the badge links to.
+
+`add_script_to_settings_page()` is gated on the same check. It is hooked to `admin_footer`,
+which fires everywhere, and its ~7KB of CSS restyles tables and inputs. It still prints
+twice on the settings screen itself, because the gateway is instantiated twice and each
+instance registers its own callback.
+
+**That double instantiation is a trap for any new hook.** `WC_Payment_Gateways::init()`,
+`WC_Payflex_Blocks::initialize()` and `WC_Gateway_PartPay::instance()` each build their
+own gateway, so `add_action(..., [$this, ...])` in the constructor stores the callback
+two or three times and the output repeats. Anything shopper-facing belongs in the
+`plugins_loaded` bootstrap as a static callback, which is where the eligibility notice is
+registered. `HooksTest::test_the_eligibility_notice_is_registered_once_however_many_gateways_exist`
+pins it.
+
+Shopper-facing messages must stay plain text. The classic notice runs them
+through `esc_html()` and the Store API types the field as a string, so
+`plain_price()` strips what `wc_price()` wraps around an amount.
 
 ---
 
@@ -257,11 +348,10 @@ when fixed, prompting the test to be tightened. Roughly highest impact first.
 | 2 | **Settings screen reports "Connection failed" with valid credentials.** The constructor calls `init_form_fields()` before `init_settings()`, so `form_fields()` asks whether the API is reachable while `$this->settings` is still empty — no auth is attempted and the status pill reads failure. Looks correct only while a token happens to be cached (e.g. right after saving). Fix: `init_settings()` first. | `WC_Gateway_PartPay::__construct()` | `AuthenticationTest::test_connection_status_reports_failure_when_no_token_is_cached` |
 | 3 | **Non-401 auth errors are treated as success.** The success branch excludes only HTTP 401, so a 500 caches and returns an empty token, later sent as `Authorization: Bearer `. Should require 2xx *and* a non-empty `access_token`. | `get_payflex_authorization_code()` | `AuthenticationTest::test_non_401_error_responses_are_treated_as_successful_auth` |
 | 4 | **Workflow-status cache leaks between orders.** `set_payflex_workflow_status()` caches the value in an instance property that `get_payflex_workflow_status()` returns for *any* order id. The gateway is a singleton and the CRON sweep loops set-then-get, so after the first order every later order in the run reports the first one's status — which drives the "has this changed?" guard. Key the cache by order id, or drop it. | `get_/set_payflex_workflow_status()` | `OrderMetaTest::test_workflow_status_cache_leaks_between_orders_after_a_write` |
-| 5 | **The 24-hour limits cache never engages.** `get_payflex_limits()` reads `$settings['payflex_limit_last_updated']` one line *before* `$settings` is assigned, so the staleness test is always true and every call re-hits `/configuration`. It is called from `check_cart_within_limits()` on the `woocommerce_available_payment_gateways` filter — i.e. a synchronous API call on cart and checkout page loads. | `get_payflex_limits()` | `LimitsTest::test_get_limits_refreshes_from_the_api_on_every_call` |
-| 6 | **Oldest `_partpay_*` fallback returns an array.** `get_post_meta()` is called without `$single = true`, so a string is expected but an array comes back and gets concatenated into a URL. Affects only pre-2.6 non-HPOS orders. The redundant call above the correct one should be deleted. | `get_payflex_order_id()`, `get_payflex_order_token()` | `OrderMetaTest::test_the_oldest_partpay_fallback_returns_an_array_not_a_string` |
-| 7 | **Widget settings are not attribute-escaped.** Values pass through `sanitize_text_field()` but never `esc_attr()`, so a double quote breaks out of its HTML attribute and truncates the container. Only reachable by users who can edit WooCommerce settings, hence low severity — but a legitimate value containing a quote also breaks the markup. | `woo_payflex_frontend_widget()` | `WidgetTest::test_widget_settings_are_not_attribute_escaped` |
-| 8 | **Leftover debug `error_log()` calls.** Three `Payflex: orderId2`/`orderId3` writes on every refund attempt, leaking the Payflex order id to the site error log. Remove them, or route through `$this->log()`. | `process_refund()` | `PluginIntegrityTest::test_leftover_debug_error_log_calls_are_still_present` |
-| 9 | **PHP requirement advertised inconsistently.** `readme.txt` says `Requires PHP: 7.4`; the support page flags anything below 8.1 as unsupported. A merchant on 7.4 can install and is then told their PHP is unsupported. Reconcile — probably by raising `readme.txt` to 8.1. | `readme.txt`, support page | `PluginIntegrityTest::test_the_php_requirement_is_advertised_inconsistently` |
+| 5 | **Oldest `_partpay_*` fallback returns an array.** `get_post_meta()` is called without `$single = true`, so a string is expected but an array comes back and gets concatenated into a URL. Affects only pre-2.6 non-HPOS orders. The redundant call above the correct one should be deleted. | `get_payflex_order_id()`, `get_payflex_order_token()` | `OrderMetaTest::test_the_oldest_partpay_fallback_returns_an_array_not_a_string` |
+| 6 | **Widget settings are not attribute-escaped.** Values pass through `sanitize_text_field()` but never `esc_attr()`, so a double quote breaks out of its HTML attribute and truncates the container. Only reachable by users who can edit WooCommerce settings, hence low severity — but a legitimate value containing a quote also breaks the markup. | `woo_payflex_frontend_widget()` | `WidgetTest::test_widget_settings_are_not_attribute_escaped` |
+| 7 | **Leftover debug `error_log()` calls.** Three `Payflex: orderId2`/`orderId3` writes on every refund attempt, leaking the Payflex order id to the site error log. Remove them, or route through `$this->log()`. | `process_refund()` | `PluginIntegrityTest::test_leftover_debug_error_log_calls_are_still_present` |
+| 8 | **PHP requirement advertised inconsistently.** `readme.txt` says `Requires PHP: 7.4`; the support page flags anything below 8.1 as unsupported. A merchant on 7.4 can install and is then told their PHP is unsupported. Reconcile — probably by raising `readme.txt` to 8.1. | `readme.txt`, support page | `PluginIntegrityTest::test_the_php_requirement_is_advertised_inconsistently` |
 
 Two more observations without characterisation tests, because the behaviour they
 affect is not reachable from the stubs:

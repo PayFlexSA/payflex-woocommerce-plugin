@@ -21,6 +21,9 @@ final class SettingsFormTest extends PF_TestCase
         'admin_only_enabled',
         'widget_only_mode',
         'payflex_debug',
+        'exclude_subscriptions',
+        'enable_product_exclusions',
+        'excluded_product_cats',
     ];
 
     public function test_all_required_fields_are_defined(): void
@@ -115,11 +118,33 @@ final class SettingsFormTest extends PF_TestCase
 
     public function test_form_field_check_lists_fields_that_were_never_saved(): void
     {
-        $gateway = $this->gateway(['payflex_debug' => 'no']);
+        $gateway = $this->gateway();
+
+        $settings = get_payflex_option();
+        unset($settings['client_secret']);
+        update_option('woocommerce_payflex_settings', $settings);
+
         $missing = $gateway->form_field_check();
 
-        $this->assertContains('section_general_start', $missing);
+        $this->assertContains('client_secret', $missing);
         $this->assertNotContains('client_id', $missing);
+    }
+
+    /**
+     * Section markers and the widget preview carry no value, so WooCommerce has
+     * nothing to save for them and the support page must not report them.
+     */
+    public function test_form_field_check_ignores_rows_that_hold_no_value(): void
+    {
+        $gateway = $this->gateway([], true);
+
+        $this->set_settings([], true);
+
+        $missing = $gateway->form_field_check();
+
+        $this->assertNotContains('section_general_start', $missing);
+        $this->assertNotContains('section_general_end', $missing);
+        $this->assertNotContains('widget_preview', $missing);
     }
 
     public function test_form_field_check_reports_everything_on_a_fresh_install(): void
@@ -128,7 +153,14 @@ final class SettingsFormTest extends PF_TestCase
 
         $this->set_settings([], true);
 
-        $this->assertCount(count($gateway->form_fields()), $gateway->form_field_check());
+        $presentational = ['section_start', 'section_end', 'widget_preview'];
+
+        $expected = array_filter(
+            $gateway->form_fields(),
+            fn($field) => !in_array($field['type'], $presentational, true)
+        );
+
+        $this->assertCount(count($expected), $gateway->form_field_check());
     }
 
     /* --------------------------------------------------------------------- */
@@ -149,6 +181,136 @@ final class SettingsFormTest extends PF_TestCase
 
         $this->assertSame('</tbody></table></div>', $gateway->generate_section_end_html('x', []));
     }
+
+    /* --------------------------------------------------------------------- */
+
+    /**
+     * The counts sit in the description of the setting they belong to, so they
+     * render inside the same block as the checkbox and the category picker.
+     */
+    private function onSettingsScreen(): void
+    {
+        PF_State::$is_admin = true;
+        $_GET['page'] = 'wc-settings';
+    }
+
+    private function description(string $field, array $overrides = []): string
+    {
+        $this->onSettingsScreen();
+
+        return $this->gateway($overrides)->form_fields()[$field]['description'];
+    }
+
+    public function test_the_per_product_setting_reports_how_many_products_are_excluded(): void
+    {
+        PF_State::$post_query_result = [11, 22, 33];
+
+        $description = $this->description('enable_product_exclusions');
+
+        $this->assertStringContainsString('3 products currently excluded', $description);
+        $this->assertStringContainsString('payflex_excluded=yes', $description, 'The count links to the filtered products list');
+        $this->assertStringContainsString('pf-exclusion-count', $description);
+    }
+
+    public function test_the_per_product_setting_says_so_when_nothing_is_excluded(): void
+    {
+        $description = $this->description('enable_product_exclusions');
+
+        $this->assertStringContainsString('No products are currently excluded', $description);
+        $this->assertStringContainsString('pf-exclusion-count--empty', $description);
+        $this->assertStringNotContainsString('<a ', $description);
+    }
+
+    public function test_no_count_is_shown_when_per_product_exclusions_are_off(): void
+    {
+        PF_State::$post_query_result = [11];
+
+        $description = $this->description('enable_product_exclusions', ['enable_product_exclusions' => 'no']);
+
+        $this->assertStringNotContainsString('pf-exclusion-count', $description);
+    }
+
+    public function test_the_excluded_categories_setting_reports_how_many_products_it_covers(): void
+    {
+        PF_State::$post_query_result = [11, 22];
+
+        $description = $this->description('excluded_product_cats', ['excluded_product_cats' => ['12']]);
+
+        $this->assertStringContainsString('2 products currently excluded', $description);
+        $this->assertStringContainsString('pf-exclusion-count', $description);
+        $this->assertStringNotContainsString('pf-exclusion-count--empty', $description, 'A real count is not the muted empty style');
+    }
+
+    public function test_the_excluded_categories_setting_shows_no_count_until_one_is_chosen(): void
+    {
+        $description = $this->description('excluded_product_cats', ['excluded_product_cats' => []]);
+
+        $this->assertStringNotContainsString('pf-exclusion-count', $description);
+    }
+
+    public function test_the_excluded_categories_setting_reports_an_empty_category(): void
+    {
+        PF_State::$post_query_result = [];
+
+        $description = $this->description('excluded_product_cats', ['excluded_product_cats' => ['12']]);
+
+        $this->assertStringContainsString('No products currently sit in these categories', $description);
+    }
+
+    /**
+     * form_fields() runs from the constructor on every admin request, so the
+     * counting queries must not fire anywhere but the settings screen.
+     */
+    public function test_no_products_are_counted_away_from_the_settings_screen(): void
+    {
+        PF_State::$is_admin = true;
+
+        $this->gateway()->form_fields();
+
+        $this->assertSame([], PF_State::$post_queries);
+    }
+
+    /**
+     * The category dropdown is built in the same place, and an unbounded term
+     * query on every post edit and media screen is the same cost.
+     */
+    public function test_no_categories_are_queried_away_from_the_settings_screen(): void
+    {
+        PF_State::$is_admin = true;
+
+        $this->gateway()->form_fields();
+
+        $this->assertSame([], PF_State::$term_queries);
+    }
+
+    public function test_the_categories_are_queried_on_the_settings_screen(): void
+    {
+        $this->onSettingsScreen();
+
+        $this->gateway()->form_fields();
+
+        $this->assertNotSame([], PF_State::$term_queries);
+    }
+
+    /**
+     * Deselecting every category posts no value at all, so WooCommerce saves the
+     * setting as an empty string rather than an empty array. Every reader has to
+     * cope with that, not just the ones that check is_array().
+     */
+    public function test_clearing_every_excluded_category_saves_an_empty_string(): void
+    {
+        $gateway = $this->gateway();
+
+        $this->assertSame('', $gateway->validate_multiselect_field('excluded_product_cats', null));
+
+        $this->set_settings(['excluded_product_cats' => '']);
+
+        $this->assertSame(0, Payflex_Admin_Products::category_excluded_product_count());
+        $this->assertSame([], PF_State::$post_queries, 'Nothing is excluded, so nothing is counted');
+        $this->assertTrue(Payflex_Eligibility::is_product_eligible(new WC_Product(101)));
+    }
+
+    /* --------------------------------------------------------------------- */
 
     public function test_section_titles_and_classes_are_escaped(): void
     {
@@ -300,9 +462,25 @@ final class SettingsFormTest extends PF_TestCase
         $this->assertNotFalse(has_action('admin_footer', [$gateway, 'add_script_to_settings_page']));
     }
 
+    /**
+     * admin_footer fires on every admin page. The settings CSS restyles tables
+     * and inputs, so it must not print anywhere else.
+     */
+    public function test_settings_page_assets_stay_off_other_admin_pages(): void
+    {
+        $gateway = $this->gateway();
+        PF_State::$is_admin = true;
+
+        ob_start();
+        $gateway->add_script_to_settings_page();
+
+        $this->assertSame('', ob_get_clean());
+    }
+
     public function test_settings_page_assets_include_the_preview_and_toggle_helpers(): void
     {
         $gateway = $this->gateway();
+        $this->onSettingsScreen();
 
         ob_start();
         $gateway->add_script_to_settings_page();
@@ -319,6 +497,7 @@ final class SettingsFormTest extends PF_TestCase
     public function test_settings_page_script_escapes_its_nested_script_tag(): void
     {
         $gateway = $this->gateway();
+        $this->onSettingsScreen();
 
         ob_start();
         $gateway->add_script_to_settings_page();

@@ -24,6 +24,8 @@ trait WC_Gateway_Payflex_Form_Fields
             $env_values[$key] = $item["name"];
         }
 
+        $category_options = $this->on_settings_screen() ? $this->product_category_options() : [];
+
         $this->form_fields = [
 
             // General
@@ -130,6 +132,37 @@ trait WC_Gateway_Payflex_Form_Fields
             // ],
             'section_widget_end' => ['type' => 'section_end'],
 
+            // Eligibility
+            'section_eligibility_start' => [
+                'type'  => 'section_start',
+                'title' => __('Eligibility', 'woo_payflex'),
+                'icon'  => 'filter',
+                'class' => 'pf-section--eligibility',
+            ],
+            'exclude_subscriptions' => [
+                'title'       => __('Subscriptions', 'woo_payflex'),
+                'type'        => 'checkbox',
+                'label'       => __('Block Payflex on subscription products', 'woo_payflex'),
+                'default'     => 'yes',
+                'description' => __('Payflex cannot be used for recurring payments.', 'woo_payflex'),
+            ],
+            'enable_product_exclusions' => [
+                'title'       => __('Per Product', 'woo_payflex'),
+                'type'        => 'checkbox',
+                'label'       => __('Allow individual products to be excluded', 'woo_payflex'),
+                'default'     => 'yes',
+                'description' => __('Adds a Payflex checkbox to the product data panel.', 'woo_payflex') . $this->product_exclusion_count(),
+            ],
+            'excluded_product_cats' => [
+                'title'       => __('Excluded Categories', 'woo_payflex'),
+                'type'        => 'multiselect',
+                'class'       => 'wc-enhanced-select',
+                'options'     => $category_options,
+                'default'     => [],
+                'description' => __('Payflex is hidden when the cart contains a product from these categories.', 'woo_payflex') . $this->category_exclusion_count(),
+            ],
+            'section_eligibility_end' => ['type' => 'section_end'],
+
             // Advanced
             'section_advanced_start' => [
                 'type'  => 'section_start',
@@ -154,6 +187,25 @@ trait WC_Gateway_Payflex_Form_Fields
         ];
 
         return $this->form_fields;
+    }
+
+    /**
+     * Product categories as term id => name.
+     */
+    private function product_category_options()
+    {
+        $terms = get_terms(['taxonomy' => 'product_cat', 'hide_empty' => false]);
+
+        if(is_wp_error($terms) OR !is_array($terms)) return [];
+
+        $options = [];
+
+        foreach($terms as $term)
+        {
+            $options[$term->term_id] = $term->name;
+        }
+
+        return $options;
     }
 
     /**
@@ -187,6 +239,83 @@ trait WC_Gateway_Payflex_Form_Fields
     {
         $title = isset($data['title']) ? esc_html($data['title']) : esc_html__('Preview', 'woo_payflex');
         return '<tr class="pf-widget-preview-row"><th>' . $title . '</th><td><div class="pfwidgetpreview"></div></td></tr>';
+    }
+
+    /**
+     * Whether this request is the WooCommerce settings screen.
+     *
+     * form_fields() runs from the gateway constructor on every admin request,
+     * so anything that costs a database query has to be limited to the one
+     * screen that displays it.
+     */
+    private function on_settings_screen()
+    {
+        if(!is_admin()) return false;
+        if(!isset($_GET['page'])) return false;
+
+        return $_GET['page'] === 'wc-settings';
+    }
+
+    /**
+     * Count of the products excluded with the per product checkbox, shown under
+     * that setting and linked to the products list filtered to them.
+     */
+    private function product_exclusion_count()
+    {
+        if(!$this->on_settings_screen()) return '';
+
+        // Nothing to report while individual exclusions are switched off
+        if(get_payflex_option('enable_product_exclusions') === 'no') return '';
+
+        $count = Payflex_Admin_Products::excluded_product_count();
+
+        if(!$count) return $this->exclusion_count_badge(__('No products are currently excluded', 'woo_payflex'), '', true);
+
+        $label = sprintf(
+            _n('%d product currently excluded', '%d products currently excluded', $count, 'woo_payflex'),
+            $count
+        );
+
+        return $this->exclusion_count_badge($label, Payflex_Admin_Products::excluded_list_url());
+    }
+
+    /**
+     * Count of the products the excluded categories cover, shown under that
+     * setting once at least one category has been chosen.
+     */
+    private function category_exclusion_count()
+    {
+        if(!$this->on_settings_screen()) return '';
+
+        $excluded = get_payflex_option('excluded_product_cats');
+
+        // Nothing to report until a category has been chosen
+        if(empty($excluded) OR !is_array($excluded)) return '';
+
+        $count = Payflex_Admin_Products::category_excluded_product_count();
+
+        if(!$count) return $this->exclusion_count_badge(__('No products currently sit in these categories', 'woo_payflex'), '', true);
+
+        $label = sprintf(
+            _n('%d product currently excluded', '%d products currently excluded', $count, 'woo_payflex'),
+            $count
+        );
+
+        return $this->exclusion_count_badge($label);
+    }
+
+    /**
+     * The badge a count is shown in. Given a url it becomes a link, and a
+     * nothing-to-report message is toned down.
+     */
+    private function exclusion_count_badge($label, $url = '', $nothing_excluded = false)
+    {
+        $class = $nothing_excluded ? 'pf-exclusion-count pf-exclusion-count--empty' : 'pf-exclusion-count';
+        $inner = '<span class="dashicons dashicons-hidden"></span>' . esc_html($label);
+
+        if(!$url) return '<br /><span class="' . $class . '">' . $inner . '</span>';
+
+        return '<br /><a class="' . $class . '" href="' . esc_url($url) . '">' . $inner . '</a>';
     }
 
     /**
@@ -252,15 +381,19 @@ trait WC_Gateway_Payflex_Form_Fields
         $saved_options      = array_keys($saved_options_full);
 
         $form_fields_full = $this->form_fields();
-        $saved_fields     = array_keys($form_fields_full);
+
+        // Section markers and the preview row hold no value, so they are never saved
+        $presentational = ['section_start', 'section_end', 'widget_preview'];
 
         $missing_fields = [];
 
-        foreach ($saved_fields as $value)
+        foreach ($form_fields_full as $key => $field)
         {
-            if (!in_array($value, $saved_options))
+            if (in_array($field['type'], $presentational, true)) continue;
+
+            if (!in_array($key, $saved_options))
             {
-                $missing_fields[] = $value;
+                $missing_fields[] = $key;
             }
         }
 
@@ -287,6 +420,10 @@ trait WC_Gateway_Payflex_Form_Fields
      */
     public function add_script_to_settings_page()
     {
+        // admin_footer fires on every admin page, and this CSS is only meant
+        // for the gateway settings screen
+        if(!$this->on_settings_screen()) return;
+
         ?>
         <script>
         function pfToggleSecret(btn) {
@@ -451,6 +588,45 @@ trait WC_Gateway_Payflex_Form_Fields
                 width: 100% !important;
                 max-width: 100% !important;
                 box-sizing: border-box;
+            }
+
+            /* ── Exclusion counts, shown under their own setting ────────── */
+            .pf-exclusion-count {
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+                margin-top: 7px;
+                padding: 2px 10px 2px 7px;
+                border-radius: 11px;
+                border: 1px solid #e0cdef;
+                background: #f6effb;
+                color: #6b3a8c;
+                font-size: 12px;
+                font-weight: 600;
+                line-height: 1.7;
+                text-decoration: none;
+            }
+
+            a.pf-exclusion-count:hover,
+            a.pf-exclusion-count:focus {
+                background: #ecdcf7;
+                border-color: #cdaee3;
+                color: #4f2a68;
+                box-shadow: none;
+            }
+
+            .pf-exclusion-count--empty {
+                border-color: #dcdcdc;
+                background: #f6f7f7;
+                color: #646970;
+                font-weight: 400;
+            }
+
+            .pf-exclusion-count .dashicons {
+                font-size: 14px;
+                width: 14px;
+                height: 14px;
+                line-height: 1.2;
             }
 
             /* ── Widget section: selects in 3-column row ────────────────── */

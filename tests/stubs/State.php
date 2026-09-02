@@ -92,6 +92,42 @@ final class PF_State
     /** Set to true once wc_empty_cart() has been called. */
     public static bool $cart_emptied = false;
 
+    /** Cart lines, shaped like WC_Cart::get_cart(): key => ['data' => WC_Product, ...]. */
+    public static array $cart_items = [];
+
+    /** Products wc_get_product() should hand back, keyed by id. */
+    public static array $products = [];
+
+    /** Product term ids, keyed by "{$product_id}|{$taxonomy}". */
+    public static array $product_terms = [];
+
+    /** Terms get_terms() should hand back, keyed by taxonomy. */
+    public static array $terms = [];
+
+    /** Fields rendered by woocommerce_wp_checkbox(). */
+    public static array $product_fields = [];
+
+    /** Notices printed by wc_print_notice(). */
+    public static array $printed_notices = [];
+
+    /** Store API endpoint data registrations. */
+    public static array $store_api_endpoints = [];
+
+    /** Post id get_the_ID() should report. */
+    public static int $current_post_id = 0;
+
+    /** Post ids get_posts() should hand back. */
+    public static array $post_query_result = [];
+
+    /** Arguments every get_posts() and WP_Query call was made with. */
+    public static array $post_queries = [];
+
+    /** Ancestor term ids, keyed "term_id|taxonomy". */
+    public static array $term_ancestors = [];
+
+    /** Arguments every get_terms() call was made with. */
+    public static array $term_queries = [];
+
     /**
      * Timestamp captured at reset(). The plugin calls the native time(), which
      * cannot be stubbed, so tests compare against this instead of a fixed value.
@@ -137,6 +173,18 @@ final class PF_State
         self::$wc_version     = '9.9.4';
         self::$cart_total     = null;
         self::$cart_emptied   = false;
+        self::$cart_items          = [];
+        self::$products            = [];
+        self::$product_terms       = [];
+        self::$terms               = [];
+        self::$product_fields      = [];
+        self::$printed_notices     = [];
+        self::$store_api_endpoints = [];
+        self::$current_post_id     = 0;
+        self::$post_query_result   = [];
+        self::$post_queries        = [];
+        self::$term_ancestors      = [];
+        self::$term_queries        = [];
         self::$now            = time();
         self::$active_plugins = [
             'woocommerce/woocommerce.php',

@@ -209,6 +209,11 @@ class WC_Order_Item implements ArrayAccess
     public function get_variation_id() { return $this->variation_id; }
     public function get_name()         { return $this->name; }
 
+    public function get_product()
+    {
+        return wc_get_product($this->variation_id ?: $this->product_id);
+    }
+
     public function offsetExists(mixed $offset): bool { return property_exists($this, (string) $offset); }
     public function offsetGet(mixed $offset): mixed   { return $this->{$offset} ?? null; }
     public function offsetSet(mixed $offset, mixed $value): void { $this->{$offset} = $value; }
@@ -221,7 +226,10 @@ class WC_Product
         public int $id = 101,
         public string $sku = 'SKU-101',
         public float $price = 100.00,
-        public string $type = 'simple'
+        public string $type = 'simple',
+        public string $name = 'Test Product',
+        public int $parent_id = 0,
+        public array $meta = []
     ) {}
 
     public function get_id()    { return $this->id; }
@@ -229,6 +237,18 @@ class WC_Product
     public function get_price() { return $this->price; }
     public function get_type()  { return $this->type; }
     public function get_regular_price() { return $this->price; }
+    public function get_name()      { return $this->name; }
+    public function get_parent_id() { return $this->parent_id; }
+
+    public function get_meta($key = '', $single = true, $context = 'view')
+    {
+        return $this->meta[$key] ?? '';
+    }
+
+    public function is_type($type)
+    {
+        return is_array($type) ? in_array($this->type, $type, true) : $this->type === $type;
+    }
 }
 
 /* -------------------------------------------------------------------------
@@ -247,6 +267,16 @@ class PF_Cart
     public function get_total($context = 'view')
     {
         return $context === 'edit' ? $this->total : wc_price($this->total);
+    }
+
+    public function get_cart()
+    {
+        return PF_State::$cart_items;
+    }
+
+    public function is_empty()
+    {
+        return empty(PF_State::$cart_items);
     }
 }
 
@@ -424,6 +454,34 @@ abstract class WC_Settings_API
     }
 
     /**
+     * Core is:
+     *   return is_array($value) ? array_map('wc_clean', array_map('stripslashes', $value)) : '';
+     *
+     * The empty string on a non-array matters: deselecting every option posts no
+     * value at all, so the setting is saved as '' and not as an empty array.
+     */
+    public function validate_multiselect_field($key, $value)
+    {
+        return is_array($value) ? array_map('sanitize_text_field', wp_unslash($value)) : '';
+    }
+
+    public function generate_multiselect_html($key, $field)
+    {
+        $selected = (array) $this->get_option($key, $field['default'] ?? []);
+        $options  = '';
+
+        foreach (($field['options'] ?? []) as $option_key => $option_label) {
+            $options .= '<option value="' . esc_attr($option_key) . '"'
+                . (in_array((string) $option_key, array_map('strval', $selected), true) ? ' selected' : '')
+                . '>' . esc_html($option_label) . '</option>';
+        }
+
+        return '<tr><th>' . esc_html($field['title'] ?? $key) . '</th><td>'
+            . '<select multiple name="' . esc_attr($this->get_field_key($key)) . '[]" '
+            . 'id="' . esc_attr($this->get_field_key($key)) . '">' . $options . '</select></td></tr>';
+    }
+
+    /**
      * Renders each field via generate_{type}_html() when the gateway defines
      * one, so custom field renderers are exercised.
      */
@@ -575,7 +633,29 @@ function wc_get_orders($args = [])
 
 function wc_get_product($product_id = 0)
 {
-    return new WC_Product((int) $product_id, 'SKU-' . $product_id);
+    $product_id = (int) $product_id;
+
+    return PF_State::$products[$product_id] ?? new WC_Product($product_id, 'SKU-' . $product_id);
+}
+
+function wc_get_product_term_ids($product_id, $taxonomy)
+{
+    return PF_State::$product_terms[$product_id . '|' . $taxonomy] ?? [];
+}
+
+function wc_print_notice($message, $notice_type = 'success', $data = [])
+{
+    PF_State::$printed_notices[] = ['message' => $message, 'type' => $notice_type];
+}
+
+function woocommerce_wp_checkbox($field)
+{
+    PF_State::$product_fields[] = $field;
+}
+
+function woocommerce_store_api_register_endpoint_data($args)
+{
+    PF_State::$store_api_endpoints[] = $args;
 }
 
 function wc_get_price_including_tax($product, $args = [])

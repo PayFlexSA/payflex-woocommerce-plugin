@@ -25,6 +25,9 @@ abstract class PF_TestCase extends TestCase
         'admin_only_enabled'      => 'no',
         'widget_only_mode'        => 'no',
         'payflex_debug'           => 'no',
+        'exclude_subscriptions'     => 'yes',
+        'enable_product_exclusions' => 'yes',
+        'excluded_product_cats'     => [],
     ];
 
     protected function setUp(): void
@@ -32,6 +35,7 @@ abstract class PF_TestCase extends TestCase
         parent::setUp();
 
         PF_State::reset();
+        Payflex_Eligibility::reset_cache();
 
         // Clear the gateway singleton and static logger between tests.
         $reflection = new ReflectionClass(WC_Gateway_PartPay::class);

@@ -12,6 +12,19 @@ require_once __DIR__ . '/trait-wc-gateway-payflex-form-fields.php';
 class WC_Gateway_PartPay extends WC_Payment_Gateway
 {
     use WC_Gateway_Payflex_Form_Fields;
+
+    /** How long a successful limits refresh is trusted for. */
+    const LIMIT_REFRESH_INTERVAL = 86400;
+
+    /**
+     * How long a *failed* refresh backs off for.
+     *
+     * Short on purpose: a failure must not be treated as a fresh answer, because
+     * limits that have never been stored leave every cart unmeasured until the
+     * next attempt.
+     */
+    const LIMIT_RETRY_INTERVAL = 900;
+
     protected array  $environments = [];
     protected string $configurationUrl = '';
     protected string $orderurl = '';
@@ -929,8 +942,14 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
         // Get existing limits
         $settings = get_payflex_option();
 
+        // Recorded on every attempt, including the ones that bail out below, so a
+        // store without credentials is not re-queried on every single call.
+        $settings['payflex_limit_last_attempt'] = time();
+
         if (false === $this->apiKeysAvailable())
         {
+            update_option('woocommerce_payflex_settings', $settings);
+            $this->init_settings();
             return false;
         }
 
@@ -957,11 +976,14 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
                 $settings['payflex_limit_amount_maximum']  = isset($body['maximumAmount']) ? $body['maximumAmount'] : 0;
                 $settings['payflex_limit_refunds_enabled'] = isset($body['enabledForRefunds']) ? $body['enabledForRefunds'] : false;
 
+                // Only a refresh that actually returned limits holds for the full
+                // interval. A failure keeps the shorter retry backoff above.
                 $settings['payflex_limit_last_updated'] = time();
             }
-
-            update_option('woocommerce_payflex_settings', $settings);
         }
+
+        update_option('woocommerce_payflex_settings', $settings);
+
         $this->init_settings();
 
     }
@@ -974,11 +996,23 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
      */
     public function get_payflex_limits($field = false)
     {
-        if (!isset($settings['payflex_limit_last_updated']) || (time() - $settings['payflex_limit_last_updated']) > 86400) {
-            $this->update_payment_limits();
-        }
+        $settings     = get_payflex_option();
+        $last_updated = isset($settings['payflex_limit_last_updated']) ? $settings['payflex_limit_last_updated'] : 0;
+        $last_attempt = isset($settings['payflex_limit_last_attempt']) ? $settings['payflex_limit_last_attempt'] : 0;
 
-        $settings = get_payflex_option();
+        // Due for a refresh once the last good answer has aged out, but never
+        // more often than the retry backoff, which is what keeps a failing
+        // endpoint from being hit on every cart and checkout load.
+        $stale = (time() - $last_updated) > self::LIMIT_REFRESH_INTERVAL;
+        $quiet = (time() - $last_attempt) < self::LIMIT_RETRY_INTERVAL;
+
+        if ($stale AND !$quiet)
+        {
+            $this->update_payment_limits();
+
+            // update_payment_limits() writes with update_option(), so the settings have to be re-read
+            $settings = get_payflex_option();
+        }
 
         if($field)
         {
@@ -1083,6 +1117,18 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
         else
         {
             $order = new WC_Order($order_id);
+        }
+
+        // The page may have been rendered while the order was still eligible.
+        //
+        // An order that already carries a Payflex transaction is left to the
+        // re-checkout guards further down, so one Payflex has already approved
+        // keeps its own handling even if a line has since become ineligible.
+        if (!$order->get_meta('_payflex_order_id'))
+        {
+            $refusal = $this->eligibility_refusal($order, $order_id);
+
+            if ($refusal) return $refusal;
         }
 
         // Check if there's a custom order number
@@ -1265,6 +1311,13 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
                 wc_add_notice(__('This order is currently awaiting approval from Payflex. Please wait for the order to be approved or cancelled before trying again.', 'woo_payflex'), 'error');
                 return;
             }
+
+            // The guards above may have cleared a declined, abandoned or
+            // cancelled transaction and fallen through to start a new one, so
+            // the order still has to be eligible before it goes to Payflex again.
+            $refusal = $this->eligibility_refusal($order, $order_id);
+
+            if ($refusal) return $refusal;
         }
 
 
@@ -1668,7 +1721,42 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
     }
 
     /**
-     * Check whether the cart amount is within payment limits
+     * The process_payment() failure for an order that can no longer be paid for
+     * with Payflex, or null when it still can.
+     */
+    private function eligibility_refusal($order, $order_id)
+    {
+        $eligibility = Payflex_Eligibility::evaluate_order($order);
+
+        if ($eligibility['eligible']) return null;
+
+        $this->log('Order ' . $order_id . ' is not eligible for Payflex: ' . implode(', ', $eligibility['reasons']), 'error');
+
+        wc_add_notice($eligibility['message'], 'error');
+
+        return [
+            'result'   => 'failure',
+            'message'  => $eligibility['message'],
+            'redirect' => $order->get_checkout_payment_url(true),
+        ];
+    }
+
+    /**
+     * Prints why Payflex is unavailable on the classic cart and checkout.
+     */
+    public static function render_eligibility_notice()
+    {
+        if (payflex_enabled() === false) return;
+
+        $eligibility = Payflex_Eligibility::evaluate_cart();
+
+        if ($eligibility['eligible']) return;
+
+        wc_print_notice(esc_html($eligibility['message']), 'notice');
+    }
+
+    /**
+     * Remove Payflex when the cart cannot be paid for with it
      *
      * @param  array $gateways Enabled gateways
      * @return  array Enabled gateways, possibly with PartPay removed
@@ -1679,25 +1767,13 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
         // Payflex is not offered as a payment method in widget only mode, so there is nothing to limit
         if (payflex_widget_only_enabled()) return $gateways;
 
-        global $woocommerce;
-        $total = isset($woocommerce->cart->total) ? $woocommerce->cart->total : 0;
+        // This instance is already built, so the evaluation must not go looking
+        // for the singleton while this very filter is being iterated.
+        Payflex_Eligibility::use_gateway($this);
 
-        $limits = $this->get_payflex_limits();
+        $eligibility = Payflex_Eligibility::evaluate_cart();
 
-        // Make sure limits are set variables
-        if (!isset($limits['minimum']) || !isset($limits['maximum'])) {
-            return $gateways;
-        }
-
-        // If we don't have a min or max amount, something is wrong.
-        if ($limits['minimum'] === false || $limits['maximum'] === false)
-        {
-            return $gateways;
-        }
-
-        $pbi = ($total >= $limits['minimum'] && $total <= $limits['maximum']);
-
-        if (!$pbi)
+        if ($eligibility['eligible'] === false)
         {
             unset($gateways['payflex']);
         }
