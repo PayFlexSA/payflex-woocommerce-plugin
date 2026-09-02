@@ -27,7 +27,7 @@ deploy via `.distignore`.
 | `WidgetTest` | Calculator widget markup, settings→attribute mapping, shortcode, Gutenberg block, variation price script |
 | `AuthenticationTest` | Token fetch, transient caching and early expiry, 401 and network failures, credential redaction in logs |
 | `LimitsTest` | `/configuration` fetch, limit persistence, `check_cart_within_limits()` boundaries |
-| `EligibilityTest` | `Payflex_Eligibility` product/cart/order rules, the shopper message, gateway removal, `process_payment()` refusal, the Store API cart payload, settings backfill |
+| `EligibilityTest` | `Payflex_Eligibility` product/cart/order rules, the shopper message, gateway removal, `process_payment()` refusal, the Store API cart payload, the shipped defaults |
 | `OrderMetaTest` | Payflex order id/token reads including pre-HPOS fallbacks, workflow status, gateway helpers |
 | `ProcessPaymentTest` | The full `/order/productSelect` payload, meta written on success, every error branch, re-checkout guards |
 | `PaymentCallbackTest` | The return-from-Payflex flow: approve/decline/abandon, replay protection, forged-status and amount-mismatch rejection |
@@ -72,6 +72,15 @@ place that decides whether Payflex may be used. Everything else asks it:
 
 Three details are easy to get wrong:
 
+- **Every exclusion ships switched off, and there is no migration.**
+  `exclude_subscriptions` and `enable_product_exclusions` both default to `'no'`
+  and `excluded_product_cats` to `[]`, so the feature does nothing until a
+  merchant asks for it. Because nothing backfills the option, a store that has
+  never opened the settings screen has no value written at all — so every reader
+  tests for `=== 'yes'` rather than `!== 'no'`, and an unset option behaves
+  exactly like an unticked box. Flipping any of those comparisons back would
+  start hiding Payflex on carts nobody opted in. Pinned by
+  `EligibilityTest::test_settings_that_predate_the_feature_exclude_nothing`.
 - **Category exclusions cover children.** `excluded_by_category()` adds every
   ancestor of the product's own terms before intersecting, because
   `wc_get_product_term_ids()` returns only directly assigned terms while the

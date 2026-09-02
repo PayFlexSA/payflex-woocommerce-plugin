@@ -36,7 +36,7 @@ final class Payflex_Admin_Products
      */
     public static function enabled()
     {
-        return get_payflex_option('enable_product_exclusions') !== 'no';
+        return get_payflex_option('enable_product_exclusions') === 'yes';
     }
 
     /**

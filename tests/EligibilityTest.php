@@ -626,40 +626,52 @@ final class EligibilityTest extends PF_TestCase
     }
 
     /* --------------------------------------------------------------------- */
-    /* Settings backfill                                                      */
+    /* Defaults                                                               */
     /* --------------------------------------------------------------------- */
 
-    public function test_the_backfill_adds_settings_introduced_after_install(): void
+    /**
+     * Both exclusion rules ship switched off, and there is no migration, so a
+     * store that has never opened the settings screen has neither option
+     * written. An unset option has to read as off, or the update would start
+     * hiding Payflex on carts nobody asked it to.
+     */
+    public function test_settings_that_predate_the_feature_exclude_nothing(): void
     {
-        $this->set_settings();
-
-        $settings = get_payflex_option();
+        $settings = self::VALID_SETTINGS;
         unset($settings['exclude_subscriptions'], $settings['enable_product_exclusions'], $settings['excluded_product_cats']);
-        update_option('woocommerce_payflex_settings', $settings);
+        $this->set_settings($settings, true);
 
-        payflex_backfill_new_settings();
+        $subscription = new WC_Product(101, 'SKU-101', 500.00, 'subscription');
+        $opted_out    = $this->product(102, ['meta' => [Payflex_Eligibility::PRODUCT_META => 'yes']]);
 
-        $this->assertSame('yes', get_payflex_option('exclude_subscriptions'));
-        $this->assertSame('yes', get_payflex_option('enable_product_exclusions'));
-        $this->assertSame([], get_payflex_option('excluded_product_cats'));
+        $this->assertTrue(Payflex_Eligibility::is_product_eligible($subscription));
+        $this->assertTrue(Payflex_Eligibility::is_product_eligible($opted_out));
+        $this->assertFalse(Payflex_Admin_Products::enabled());
     }
 
-    public function test_the_backfill_leaves_a_merchants_choices_alone(): void
+    public function test_the_exclusion_settings_ship_switched_off(): void
+    {
+        $fields = $this->gateway()->form_fields();
+
+        $this->assertSame('no', $fields['exclude_subscriptions']['default']);
+        $this->assertSame('no', $fields['enable_product_exclusions']['default']);
+        $this->assertSame([], $fields['excluded_product_cats']['default']);
+    }
+
+    /**
+     * A subscription is only blocked once the merchant asks for it.
+     */
+    public function test_subscriptions_are_allowed_until_the_rule_is_switched_on(): void
     {
         $this->set_settings(['exclude_subscriptions' => 'no']);
 
-        payflex_backfill_new_settings();
+        $subscription = new WC_Product(101, 'SKU-101', 500.00, 'subscription');
 
-        $this->assertSame('no', get_payflex_option('exclude_subscriptions'));
-    }
+        $this->assertTrue(Payflex_Eligibility::is_product_eligible($subscription));
 
-    public function test_the_backfill_skips_a_fresh_install(): void
-    {
-        update_option('woocommerce_payflex_settings', []);
+        $this->set_settings(['exclude_subscriptions' => 'yes']);
 
-        payflex_backfill_new_settings();
-
-        $this->assertSame([], get_payflex_option());
+        $this->assertFalse(Payflex_Eligibility::is_product_eligible($subscription));
     }
 
     /**

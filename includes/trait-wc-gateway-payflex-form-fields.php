@@ -143,14 +143,14 @@ trait WC_Gateway_Payflex_Form_Fields
                 'title'       => __('Subscriptions', 'woo_payflex'),
                 'type'        => 'checkbox',
                 'label'       => __('Block Payflex on subscription products', 'woo_payflex'),
-                'default'     => 'yes',
+                'default'     => 'no',
                 'description' => __('Payflex cannot be used for recurring payments.', 'woo_payflex'),
             ],
             'enable_product_exclusions' => [
                 'title'       => __('Per Product', 'woo_payflex'),
                 'type'        => 'checkbox',
                 'label'       => __('Allow individual products to be excluded', 'woo_payflex'),
-                'default'     => 'yes',
+                'default'     => 'no',
                 'description' => __('Adds a Payflex checkbox to the product data panel.', 'woo_payflex') . $this->product_exclusion_count(),
             ],
             'excluded_product_cats' => [
@@ -265,7 +265,7 @@ trait WC_Gateway_Payflex_Form_Fields
         if(!$this->on_settings_screen()) return '';
 
         // Nothing to report while individual exclusions are switched off
-        if(get_payflex_option('enable_product_exclusions') === 'no') return '';
+        if(get_payflex_option('enable_product_exclusions') !== 'yes') return '';
 
         $count = Payflex_Admin_Products::excluded_product_count();
 

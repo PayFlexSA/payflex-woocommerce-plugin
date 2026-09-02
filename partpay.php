@@ -92,30 +92,6 @@ function get_payflex_option($option = FALSE)
     return $payflex_settings;
 }
 
-/**
- * Writes defaults for settings added after the plugin was installed.
- */
-function payflex_backfill_new_settings()
-{
-    $settings = get_payflex_option();
-
-    // A store with no settings at all is a fresh install, init_settings() applies the defaults there
-    if(empty($settings)) return;
-
-    $defaults = [
-        'exclude_subscriptions'     => 'yes',
-        'enable_product_exclusions' => 'yes',
-        'excluded_product_cats'     => [],
-    ];
-
-    $missing = array_diff_key($defaults, $settings);
-
-    if(empty($missing)) return;
-
-    update_option('woocommerce_payflex_settings', array_merge($settings, $missing));
-}
-
-
 function payflex_plugin_basename()
 {
     return plugin_basename(__FILE__);
@@ -136,8 +112,6 @@ add_action('plugins_loaded', function(){
     require_once( PAYFLEX_PLUGIN_DIR . 'includes/class-payflex-eligibility.php' );
     require_once( PAYFLEX_PLUGIN_DIR . 'includes/class-payflex-admin-products.php' );
     require_once( plugin_basename( 'includes/class-wc-gateway-payflex.php' ) );
-
-    payflex_backfill_new_settings();
 
     Payflex_Admin_Products::register();
 
@@ -527,7 +501,7 @@ add_action('admin_menu', ['WC_Gateway_PartPay', 'register_support_page']);
 add_action('woocommerce_product_options_general_product_data', 'payflex_product_exclusion_field');
 function payflex_product_exclusion_field()
 {
-    if(get_payflex_option('enable_product_exclusions') === 'no') return;
+    if(get_payflex_option('enable_product_exclusions') !== 'yes') return;
 
     echo '<div class="options_group">';
 
@@ -545,7 +519,7 @@ function payflex_product_exclusion_field()
 add_action('woocommerce_process_product_meta', 'payflex_save_product_exclusion_field');
 function payflex_save_product_exclusion_field($post_id)
 {
-    if(get_payflex_option('enable_product_exclusions') === 'no') return;
+    if(get_payflex_option('enable_product_exclusions') !== 'yes') return;
 
     update_post_meta($post_id, Payflex_Eligibility::PRODUCT_META, isset($_POST[Payflex_Eligibility::PRODUCT_META]) ? 'yes' : 'no');
 }
