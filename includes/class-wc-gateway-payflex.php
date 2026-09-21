@@ -495,7 +495,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
 
         if(isset($_GET['payflex_order_id']) && !empty($_GET['payflex_order_id']))
         {
-            $payflex_order_id = sanitize_text_field($_GET['payflex_order_id']);
+            $payflex_order_id = sanitize_text_field(wp_unslash($_GET['payflex_order_id']));
             $payflex_order = $WC->payflex_remote_get_order($payflex_order_id);
         }
 
@@ -712,7 +712,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
                                 <?php if($redirect_url): ?>
                                     <input type="hidden" name="redirect_url" value="<?=$redirect_url?>">
                                 <?php endif; ?>
-                                <input type="text" id="payflex_order_id" name="payflex_order_id" value="<?=$payflex_order_id?>" style="width:300px;" placeholder="Order ID">
+                                <input type="text" id="payflex_order_id" name="payflex_order_id" value="<?=esc_attr($payflex_order_id)?>" style="width:300px;" placeholder="Order ID">
                                 <input type="submit" value="Lookup">
                             </form>
                             <?php if($payflex_order_id AND !$payflex_order): ?>
@@ -732,7 +732,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
                         </tr>
                         <tr>
                             <td>Order Consumer</td>
-                            <td><?=$payflex_order->consumer->givenNames?> <?=$payflex_order->consumer->surname?></td>
+                            <td><?=esc_html($payflex_order->consumer->givenNames)?> <?=esc_html($payflex_order->consumer->surname)?></td>
                         </tr>
                         <tr>
                             <?php
@@ -742,24 +742,24 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
                             ?>
                             <td>Order Status</td>
                             <td>
-                                <span class="<?=$class?>"><?=$payflex_order->orderStatus?></span>
+                                <span class="<?=esc_attr($class)?>"><?=esc_html($payflex_order->orderStatus)?></span>
                             </td>
                         </tr>
                         <tr>
                             <td>Order ID</td>
                             <td>
-                                <?=$payflex_order->orderId?>
+                                <?=esc_html($payflex_order->orderId)?>
                             </td>
                         </tr>
                         <tr>
                             <td>Merchant Reference</td>
                             <td>
-                                <?=$payflex_order->merchantReference?>
+                                <?=esc_html($payflex_order->merchantReference)?>
                             </td>
                         </tr>
                         <tr>
                             <td>Order Amount</td>
-                            <td><?=$payflex_order->amount?></td>
+                            <td><?=esc_html($payflex_order->amount)?></td>
                         </tr>
                         <tr>
                             <td>Order Date</td>
@@ -768,7 +768,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
                         </tr>
                         <tr class="no-border">
                             <td>Order Email</td>
-                            <td><a href="mailto:<?=$payflex_order->consumer->email?>"><?=$payflex_order->consumer->email?></a></td>
+                            <td><a href="mailto:<?=esc_attr($payflex_order->consumer->email)?>"><?=esc_html($payflex_order->consumer->email)?></a></td>
                         </tr>
                     </table>
                 </div>

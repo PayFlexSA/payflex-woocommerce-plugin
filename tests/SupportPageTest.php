@@ -273,6 +273,90 @@ final class SupportPageTest extends PF_TestCase
     /* --------------------------------------------------------------------- */
 
     /**
+     * payflex_order_id is reflected straight back into the lookup field's
+     * value attribute, so a quote in the query string must not be able to
+     * close that attribute and add its own. sanitize_text_field() alone does
+     * not do this: it strips tags but leaves quotes intact.
+     */
+    public function test_a_quote_in_the_looked_up_order_id_cannot_break_out_of_the_value_attribute(): void
+    {
+        $this->gateway();
+        $this->withLimits();
+
+        $payload = '" autofocus onfocus=alert(document.domain) x="';
+
+        // WordPress slashes request data before a page callback ever sees it.
+        $_GET = ['payflex_order_id' => addslashes($payload)];
+        PF_State::stub_json(404, ['message' => 'Not found'], '/order/' . $payload);
+
+        $output = $this->render();
+
+        // The payload text itself is fine to display -- what matters is that
+        // it stays inside the value attribute instead of becoming markup.
+        $this->assertStringContainsString(
+            'value="&quot; autofocus onfocus=alert(document.domain) x=&quot;"',
+            $output,
+            'The reflected order ID must come back with its quotes encoded'
+        );
+
+        $this->assertMatchesRegularExpression(
+            '#<input type="text" id="payflex_order_id" name="payflex_order_id" value="[^"]*" style="width:300px;" placeholder="Order ID">#',
+            $output,
+            'The lookup field must not gain any attribute from the query string'
+        );
+    }
+
+    /**
+     * A failed lookup still renders the form, so escaping cannot rely on the
+     * remote call succeeding.
+     */
+    public function test_an_ordinary_order_id_is_reflected_unchanged(): void
+    {
+        $this->gateway();
+        $this->withLimits();
+
+        $_GET = ['payflex_order_id' => 'PF-NOPE'];
+        PF_State::stub_json(404, ['message' => 'Not found'], '/order/PF-NOPE');
+
+        $this->assertStringContainsString('value="PF-NOPE"', $this->render());
+    }
+
+    /**
+     * Order details come from the Payflex API rather than the request, but a
+     * hostile or compromised response must not reach the page as markup.
+     */
+    public function test_the_order_details_from_the_api_are_escaped(): void
+    {
+        $this->gateway();
+        $this->withLimits();
+
+        $_GET = ['payflex_order_id' => 'PF-XSS'];
+        PF_State::stub_json(200, [
+            'orderStatus'       => '<script>alert(1)</script>',
+            'orderId'           => 'PF-XSS',
+            'merchantReference' => '<img src=x onerror=alert(2)>',
+            'amount'            => 750.50,
+            'createdDateTime'   => '2026-01-15T10:30:00Z',
+            'consumer'          => [
+                'givenNames' => '<svg onload=alert(3)>',
+                'surname'    => 'Mokoena',
+                'email'      => '"onmouseover="alert(4)',
+            ],
+        ], '/order/PF-XSS');
+
+        $output = $this->render();
+
+        $this->assertStringNotContainsString('<script>alert(1)</script>', $output);
+        $this->assertStringNotContainsString('<img src=x', $output);
+        $this->assertStringNotContainsString('<svg onload', $output);
+        $this->assertStringNotContainsString('"onmouseover="', $output);
+
+        // The values must still be readable by support staff, just inert.
+        $this->assertStringContainsString('&lt;script&gt;alert(1)&lt;/script&gt;', $output);
+        $this->assertStringContainsString('Mokoena', $output);
+    }
+
+    /**
      * redirect_url is echoed into an href and a hidden input, so an off-site
      * value must be rejected rather than turned into an open redirect.
      */
