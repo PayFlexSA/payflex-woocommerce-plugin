@@ -120,7 +120,7 @@ final class SettingsFormTest extends PF_TestCase
     {
         $gateway = $this->gateway();
 
-        $settings = get_payflex_option();
+        $settings = payflex_get_option();
         unset($settings['client_secret']);
         update_option('woocommerce_payflex_settings', $settings);
 

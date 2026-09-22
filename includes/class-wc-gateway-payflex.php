@@ -118,7 +118,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
         // Load the frontend scripts.
         $this->init_scripts_js();
         $this->init_scripts_css();
-        $settings = get_payflex_option();
+        $settings = payflex_get_option();
 
         $api_url = '';
         $this->configurationUrl = '';
@@ -129,9 +129,9 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
                 $this->debug_mode = $this->settings['payflex_debug'] == 'yes' ? true : false;
 
             $api_url = '';
-            if(isset($this->environments[get_payflex_option('testmode')]))
+            if(isset($this->environments[payflex_get_option('testmode')]))
             {
-                $api_url = $this->environments[get_payflex_option('testmode')]['api_url'];
+                $api_url = $this->environments[payflex_get_option('testmode')]['api_url'];
             }
             $this->orderurl = $api_url . '/order';
             $this->configurationUrl = $api_url . '/configuration';
@@ -280,7 +280,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
         {
             //config separated for ease of editing
             require (__DIR__.'/../config/config.php');
-            $this->environments = $environments;
+            $this->environments = $payflex_environments;
         }
     }
 
@@ -486,7 +486,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
             // Validate redirect
             $request_host = isset($_SERVER['HTTP_HOST']) ? sanitize_text_field(wp_unslash($_SERVER['HTTP_HOST'])) : '';
 
-            if(!filter_var($redirect_url, FILTER_VALIDATE_URL) OR parse_url($redirect_url, PHP_URL_HOST) !== $request_host)
+            if(!filter_var($redirect_url, FILTER_VALIDATE_URL) OR wp_parse_url($redirect_url, PHP_URL_HOST) !== $request_host)
             {
                 $redirect_url = FALSE;
             }
@@ -950,7 +950,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
     public function update_payment_limits()
     {
         // Get existing limits
-        $settings = get_payflex_option();
+        $settings = payflex_get_option();
 
         // Recorded on every attempt, including the ones that bail out below, so a
         // store without credentials is not re-queried on every single call.
@@ -1006,7 +1006,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
      */
     public function get_payflex_limits($field = false)
     {
-        $settings     = get_payflex_option();
+        $settings     = payflex_get_option();
         $last_updated = isset($settings['payflex_limit_last_updated']) ? $settings['payflex_limit_last_updated'] : 0;
         $last_attempt = isset($settings['payflex_limit_last_attempt']) ? $settings['payflex_limit_last_attempt'] : 0;
 
@@ -1021,7 +1021,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
             $this->update_payment_limits();
 
             // update_payment_limits() writes with update_option(), so the settings have to be re-read
-            $settings = get_payflex_option();
+            $settings = payflex_get_option();
         }
 
         if($field)
@@ -1062,7 +1062,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
             return (is_ssl() ? 'https:' : 'http:') . $url;
         }
 
-        if (parse_url($url, PHP_URL_HOST))
+        if (wp_parse_url($url, PHP_URL_HOST))
         {
             return $url;
         }
@@ -1086,7 +1086,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
     {
         foreach (array(home_url(), site_url()) as $candidate)
         {
-            $parts = parse_url((string)$candidate);
+            $parts = wp_parse_url((string)$candidate);
 
             if (!empty($parts['scheme']) AND !empty($parts['host']))
             {
@@ -2006,7 +2006,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
             $body = json_decode(wp_remote_retrieve_body($response));
 
             $response_code = wp_remote_retrieve_response_code($response);
-            $settings = get_payflex_option();
+            $settings = payflex_get_option();
 
 
             if ($response_code != 200)

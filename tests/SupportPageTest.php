@@ -179,7 +179,7 @@ final class SupportPageTest extends PF_TestCase
         $this->gateway();
         $this->withLimits();
 
-        $settings = get_payflex_option();
+        $settings = payflex_get_option();
         unset($settings['client_secret']);
         update_option('woocommerce_payflex_settings', $settings);
 

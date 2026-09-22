@@ -5,7 +5,7 @@
  *
  * Extracted from WC_Gateway_PartPay to keep the main class focused on
  * payment logic. Requires $this->environments (populated by init_environment_config)
- * and the get_payflex_option() helper.
+ * and the payflex_get_option() helper.
  */
 trait WC_Gateway_Payflex_Form_Fields
 {
@@ -265,7 +265,7 @@ trait WC_Gateway_Payflex_Form_Fields
         if(!$this->on_settings_screen()) return '';
 
         // Nothing to report while individual exclusions are switched off
-        if(get_payflex_option('enable_product_exclusions') !== 'yes') return '';
+        if(payflex_get_option('enable_product_exclusions') !== 'yes') return '';
 
         $count = Payflex_Admin_Products::excluded_product_count();
 
@@ -288,7 +288,7 @@ trait WC_Gateway_Payflex_Form_Fields
     {
         if(!$this->on_settings_screen()) return '';
 
-        $excluded = get_payflex_option('excluded_product_cats');
+        $excluded = payflex_get_option('excluded_product_cats');
 
         // Nothing to report until a category has been chosen
         if(empty($excluded) OR !is_array($excluded)) return '';
@@ -379,7 +379,7 @@ trait WC_Gateway_Payflex_Form_Fields
      */
     public function form_field_check()
     {
-        $saved_options_full = get_payflex_option();
+        $saved_options_full = payflex_get_option();
         $saved_options      = array_keys($saved_options_full);
 
         $form_fields_full = $this->form_fields();

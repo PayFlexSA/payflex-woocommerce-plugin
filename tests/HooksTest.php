@@ -14,15 +14,15 @@ final class HooksTest extends PF_TestCase
 {
     public function test_the_gateway_is_added_to_the_woocommerce_payment_gateways_list(): void
     {
-        $this->assertNotFalse(has_filter('woocommerce_payment_gateways', 'woocommerce_add_payflex_gateway'));
-        $this->assertContains('WC_Gateway_PartPay', woocommerce_add_payflex_gateway([]));
+        $this->assertNotFalse(has_filter('woocommerce_payment_gateways', 'payflex_add_gateway'));
+        $this->assertContains('WC_Gateway_PartPay', payflex_add_gateway([]));
     }
 
     public function test_registering_the_gateway_preserves_the_existing_gateways(): void
     {
         $this->assertSame(
             ['WC_Gateway_COD', 'WC_Gateway_PartPay'],
-            woocommerce_add_payflex_gateway(['WC_Gateway_COD'])
+            payflex_add_gateway(['WC_Gateway_COD'])
         );
     }
 
@@ -180,7 +180,7 @@ final class HooksTest extends PF_TestCase
     {
         $this->set_settings(['enabled' => 'yes']);
 
-        register_payflex_widget_block();
+        payflex_register_widget_block();
 
         $this->assertSame(['payflex/widget'], array_column(PF_State::$blocks, 'name'));
         $this->assertContains('payflex-widget-block', array_column(PF_State::$scripts, 'handle'));
@@ -190,7 +190,7 @@ final class HooksTest extends PF_TestCase
     {
         $this->set_settings(['enabled' => 'no']);
 
-        register_payflex_widget_block();
+        payflex_register_widget_block();
 
         $this->assertSame([], PF_State::$blocks);
     }
@@ -199,13 +199,13 @@ final class HooksTest extends PF_TestCase
     {
         $this->set_settings(['enabled' => 'yes']);
 
-        register_payflex_widget_block();
+        payflex_register_widget_block();
 
-        $this->assertSame('render_payflex_widget_block', PF_State::$blocks[0]['args']['render_callback']);
+        $this->assertSame('payflex_render_widget_block', PF_State::$blocks[0]['args']['render_callback']);
     }
 
     /**
-     * register_payflex_widget_block() calls filemtime() on this file, which
+     * payflex_register_widget_block() calls filemtime() on this file, which
      * would emit a warning and register a broken asset version if it were gone.
      */
     public function test_the_widget_block_script_file_exists(): void
@@ -237,14 +237,14 @@ final class HooksTest extends PF_TestCase
         // WordPress 6.3+ uses woocommerce_before_add_to_cart_form; the plugin
         // decides this once at load time against the running WP version.
         $this->assertNotFalse(
-            has_action('woocommerce_before_add_to_cart_form', 'widget_content'),
+            has_action('woocommerce_before_add_to_cart_form', 'payflex_widget_content'),
             'Expected the 6.3+ hook for the WordPress version under test'
         );
     }
 
     public function test_the_shortcode_is_registered(): void
     {
-        $this->assertNotFalse(has_action('shortcode_payflex_widget', 'widget_shortcode_content'));
+        $this->assertNotFalse(has_action('shortcode_payflex_widget', 'payflex_widget_shortcode_content'));
     }
 
     public function test_the_support_page_is_registered_on_the_admin_menu(): void

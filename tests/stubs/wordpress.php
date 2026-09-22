@@ -632,6 +632,48 @@ function wp_parse_args($args, $defaults = [])
     return array_merge($defaults, (array) $args);
 }
 
+function wp_parse_url($url, $component = -1)
+{
+    $to_unset = [];
+    $url      = (string) $url;
+
+    if (str_starts_with($url, '//')) {
+        $to_unset[] = 'scheme';
+        $url        = 'placeholder:' . $url;
+    } elseif (str_starts_with($url, '/')) {
+        $to_unset[] = 'scheme';
+        $to_unset[] = 'host';
+        $url        = 'placeholder://placeholder' . $url;
+    }
+
+    $parts = parse_url($url);
+
+    if (false === $parts) {
+        return $parts;
+    }
+
+    foreach ($to_unset as $key) {
+        unset($parts[$key]);
+    }
+
+    if (-1 === $component) {
+        return $parts;
+    }
+
+    $map = [
+        PHP_URL_SCHEME   => 'scheme',
+        PHP_URL_HOST     => 'host',
+        PHP_URL_PORT     => 'port',
+        PHP_URL_USER     => 'user',
+        PHP_URL_PASS     => 'pass',
+        PHP_URL_PATH     => 'path',
+        PHP_URL_QUERY    => 'query',
+        PHP_URL_FRAGMENT => 'fragment',
+    ];
+
+    return isset($map[$component], $parts[$map[$component]]) ? $parts[$map[$component]] : null;
+}
+
 function wp_json_encode($data, $options = 0, $depth = 512)
 {
     return json_encode($data, $options, $depth);

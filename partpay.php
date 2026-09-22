@@ -50,14 +50,14 @@ function payflex_is_woocommerce_active()
     return false;
 }
 
-$woocommerce_active = payflex_is_woocommerce_active();
+$payflex_woocommerce_active = payflex_is_woocommerce_active();
 
 /**
  * Add settings link on plugin page, or a reason we're disabled if WooCommerce wasn't detected
  */
-add_filter( 'plugin_action_links_' . plugin_basename(__FILE__), function ( $actions ) use ( $woocommerce_active )
+add_filter( 'plugin_action_links_' . plugin_basename(__FILE__), function ( $actions ) use ( $payflex_woocommerce_active )
 {
-    if ( $woocommerce_active )
+    if ( $payflex_woocommerce_active )
     {
         $actions[] = '<a href="' . admin_url( 'admin.php?page=wc-settings&tab=checkout&section=payflex' ) . '">Settings</a>';
     }
@@ -69,7 +69,7 @@ add_filter( 'plugin_action_links_' . plugin_basename(__FILE__), function ( $acti
     return $actions;
 } );
 
-if (!$woocommerce_active) return;
+if (!$payflex_woocommerce_active) return;
 
 # We need to set a global variable for the product page widget, otherwise it won't work in some themes
 global $payflex_product_page_widget_displayed;
@@ -78,7 +78,7 @@ $payflex_product_page_widget_displayed = false;
 /**
  * Gets a Payflex option from the database, if none is provided, it returns all options.
  */
-function get_payflex_option($option = FALSE)
+function payflex_get_option($option = FALSE)
 {
     $payflex_settings = get_option('woocommerce_payflex_settings', array());
 
@@ -104,7 +104,7 @@ function payflex_plugin_basename()
     return plugin_basename(__FILE__);
 }
 
-function woocommerce_add_payflex_gateway($methods)
+function payflex_add_gateway($methods)
 {
     $methods[] = 'WC_Gateway_PartPay';
     return $methods;
@@ -130,7 +130,7 @@ add_action('plugins_loaded', function(){
     add_action('woocommerce_before_cart', ['WC_Gateway_PartPay', 'render_eligibility_notice']);
     add_action('woocommerce_review_order_before_payment', ['WC_Gateway_PartPay', 'render_eligibility_notice']);
 
-    add_filter('woocommerce_payment_gateways', 'woocommerce_add_payflex_gateway');
+    add_filter('woocommerce_payment_gateways', 'payflex_add_gateway');
 }, 0);
 
 
@@ -216,7 +216,7 @@ add_action('template_redirect', function()
 /**
  * Custom function to declare compatibility with cart_checkout_blocks feature 
 */
-function declare_cart_checkout_blocks_compatibility() {
+function payflex_declare_blocks_compatibility() {
     // Check if the required class exists
     if (class_exists('\Automattic\WooCommerce\Utilities\FeaturesUtil')) {
         // Declare compatibility for 'cart_checkout_blocks'
@@ -224,7 +224,7 @@ function declare_cart_checkout_blocks_compatibility() {
     }
 }
 // Hook the custom function to the 'before_woocommerce_init' action
-add_action('before_woocommerce_init', 'declare_cart_checkout_blocks_compatibility');
+add_action('before_woocommerce_init', 'payflex_declare_blocks_compatibility');
 
 
 /**
@@ -282,11 +282,11 @@ function payflex_cart_eligibility_schema()
     ];
 }
 
-add_action( 'woocommerce_blocks_loaded', 'oawoo_register_order_approval_payment_method_type' );
+add_action( 'woocommerce_blocks_loaded', 'payflex_register_blocks_payment_method' );
 /**
  * Custom function to register a payment method type
  */
-function oawoo_register_order_approval_payment_method_type() {
+function payflex_register_blocks_payment_method() {
 
     // Check if the required class exists
     if ( ! class_exists( 'Automattic\WooCommerce\Blocks\Payments\Integrations\AbstractPaymentMethodType' ) ) {
@@ -397,44 +397,44 @@ add_filter('cron_schedules', function ($schedules)
 
 
 // FUNCTION - Frontend show on single product page
-function widget_content()
+function payflex_widget_content()
 {
 
     if(payflex_product_widget_enabled() == false) return;
 
-    $widget = woo_payflex_frontend_widget();
+    $widget = payflex_frontend_widget();
 
     // An ineligible product returns nothing, so there is no widget to echo.
-    // woo_payflex_frontend_widget() is the single writer of
+    // payflex_frontend_widget() is the single writer of
     // $payflex_product_page_widget_displayed and has already set it by here.
     if(!$widget) return;
 
-    echo $widget; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- woo_payflex_frontend_widget() is the trust boundary: it builds this markup itself and escapes the values that enter it. The markup contains the hosted widget <script> and the merchant's <style> block, both of which wp_kses_post() would strip.
+    echo $widget; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- payflex_frontend_widget() is the trust boundary: it builds this markup itself and escapes the values that enter it. The markup contains the hosted widget <script> and the merchant's <style> block, both of which wp_kses_post() would strip.
 
 }
 global $wp_version;
 if($wp_version >= 6.3){
-    add_action('woocommerce_before_add_to_cart_form', 'widget_content', 0);
+    add_action('woocommerce_before_add_to_cart_form', 'payflex_widget_content', 0);
 }else{
-    add_action('woocommerce_single_product_summary', 'widget_content', 12);
+    add_action('woocommerce_single_product_summary', 'payflex_widget_content', 12);
 }
 
 
-function widget_shortcode_content()
+function payflex_widget_shortcode_content()
 {
-    return woo_payflex_frontend_widget();
+    return payflex_frontend_widget();
 }
 
-add_shortcode('payflex_widget', 'widget_shortcode_content');
+add_shortcode('payflex_widget', 'payflex_widget_shortcode_content');
 
 
-function woo_payflex_frontend_widget($amount = false)
+function payflex_frontend_widget($amount = false)
 {
     global $product, $payflex_product_page_widget_displayed;
 
     if(!$product) return;
 
-    $payflex_settings = get_payflex_option();
+    $payflex_settings = payflex_get_option();
 
     // Payflex cannot be used for this product, so the widget does not show at all
     if(!Payflex_Eligibility::is_product_eligible($product)) return;
@@ -500,6 +500,16 @@ function woo_payflex_frontend_widget($amount = false)
     return $custom_css . '<div class="payflexCalculatorWidgetContainer" '.$all_div_options.'><script async src="https://widgets.payflex.co.za/2.0.3/payflex-widget.min.js?type=calculator'.$all_options.'" type="application/javascript"></script></div>';
 }
 
+/**
+ * Back-compat alias for payflex_frontend_widget().
+ * Kept because merchant themes may call the old name directly.
+ */
+// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound -- Deprecated alias kept for merchant themes; the prefixed name above is canonical.
+function woo_payflex_frontend_widget($amount = false)
+{
+    return payflex_frontend_widget($amount);
+}
+
 // Register support page. This needs to be outside the class otherwise it won't be called soon enough
 add_action('admin_menu', ['WC_Gateway_PartPay', 'register_support_page']);
 
@@ -508,7 +518,7 @@ add_action('admin_menu', ['WC_Gateway_PartPay', 'register_support_page']);
 add_action('woocommerce_product_options_general_product_data', 'payflex_product_exclusion_field');
 function payflex_product_exclusion_field()
 {
-    if(get_payflex_option('enable_product_exclusions') !== 'yes') return;
+    if(payflex_get_option('enable_product_exclusions') !== 'yes') return;
 
     echo '<div class="options_group">';
 
@@ -526,7 +536,7 @@ function payflex_product_exclusion_field()
 add_action('woocommerce_process_product_meta', 'payflex_save_product_exclusion_field');
 function payflex_save_product_exclusion_field($post_id)
 {
-    if(get_payflex_option('enable_product_exclusions') !== 'yes') return;
+    if(payflex_get_option('enable_product_exclusions') !== 'yes') return;
 
     update_post_meta($post_id, Payflex_Eligibility::PRODUCT_META, isset($_POST[Payflex_Eligibility::PRODUCT_META]) ? 'yes' : 'no'); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- WC_Admin_Meta_Boxes::save_meta_boxes() verifies woocommerce_meta_nonce before firing woocommerce_process_product_meta.
 }
@@ -536,7 +546,7 @@ function payflex_save_product_exclusion_field($post_id)
 function payflex_block_vars() {
     $payflex_block_vars = [
         'pluginUrl' => PAYFLEX_PLUGIN_URL,
-        'payflex_widget' => woo_payflex_frontend_widget(),
+        'payflex_widget' => payflex_frontend_widget(),
     ];
     wp_localize_script('payflex-widget-block', 'payflexBlockVars', $payflex_block_vars);
 }
@@ -545,7 +555,7 @@ add_action('enqueue_block_editor_assets', 'payflex_block_vars');
 
 
 // Register the block
-function register_payflex_widget_block() {
+function payflex_register_widget_block() {
     if(payflex_widgets_enabled() == false) return;
 
     wp_register_script(
@@ -557,19 +567,19 @@ function register_payflex_widget_block() {
 
     register_block_type('payflex/widget', array(
         'editor_script' => 'payflex-widget-block',
-        'render_callback' => 'render_payflex_widget_block',
+        'render_callback' => 'payflex_render_widget_block',
     ));
 }
-add_action('init', 'register_payflex_widget_block');
+add_action('init', 'payflex_register_widget_block');
 
 // Render the block
-function render_payflex_widget_block($attributes) {
+function payflex_render_widget_block($attributes) {
     ob_start();
     // If were in the page builder, just show an image, if were rendering the block on the front end, show the widget
     if (is_admin()) {
         echo '<img src="' . esc_url(plugins_url('assets/widget-icon.png', __FILE__)) . '" alt="Payflex Widget" />';
     } else {
-        echo woo_payflex_frontend_widget(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- woo_payflex_frontend_widget() is the trust boundary: it builds this markup itself and escapes the values that enter it. The markup contains the hosted widget <script> and the merchant's <style> block, both of which wp_kses_post() would strip.
+        echo payflex_frontend_widget(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- payflex_frontend_widget() is the trust boundary: it builds this markup itself and escapes the values that enter it. The markup contains the hosted widget <script> and the merchant's <style> block, both of which wp_kses_post() would strip.
     }
     return ob_get_clean();
 }
@@ -580,7 +590,7 @@ function payflex_enabled()
     if(payflex_widget_only_enabled()) return false;
 
     // Check if gateway is enabled
-    if(get_payflex_option('enabled') !== 'yes') return false;
+    if(payflex_get_option('enabled') !== 'yes') return false;
 
     // Check admin only mode
     if(payflex_admin_only_enabled())
@@ -597,7 +607,7 @@ function payflex_enabled()
  */
 function payflex_admin_only_enabled()
 {
-    if(get_payflex_option('admin_only_enabled') === 'yes') return true;
+    if(payflex_get_option('admin_only_enabled') === 'yes') return true;
 
     return false;
 }
@@ -607,7 +617,7 @@ function payflex_admin_only_enabled()
  */
 function payflex_widget_only_enabled()
 {
-    if(get_payflex_option('widget_only_mode') === 'yes') return true;
+    if(payflex_get_option('widget_only_mode') === 'yes') return true;
 
     return false;
 }
@@ -631,7 +641,7 @@ function payflex_product_widget_enabled()
 {
     if(payflex_widgets_enabled() == false) return false;
 
-    if(get_payflex_option('enable_product_widget') === 'yes') return true;
+    if(payflex_get_option('enable_product_widget') === 'yes') return true;
 
     return false;
 }
@@ -643,14 +653,14 @@ function payflex_checkout_widget_enabled()
     // No cart means there is nothing to measure, so the widget stays available
     if(WC()->cart AND Payflex_Eligibility::evaluate_cart()['eligible'] === false) return false;
 
-    if(get_payflex_option('enable_checkout_widget') === 'yes') return true;
+    if(payflex_get_option('enable_checkout_widget') === 'yes') return true;
 
     return false;
 }
 
 function payflex_environment()
 {
-    $payflex_settings = get_payflex_option();
+    $payflex_settings = payflex_get_option();
 
     if(isset($payflex_settings['testmode']))
     {

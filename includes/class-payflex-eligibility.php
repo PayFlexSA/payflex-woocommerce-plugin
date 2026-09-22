@@ -122,7 +122,7 @@ final class Payflex_Eligibility
      */
     private static function excluded_by_type($product)
     {
-        if(get_payflex_option('exclude_subscriptions') !== 'yes') return false;
+        if(payflex_get_option('exclude_subscriptions') !== 'yes') return false;
 
         return in_array($product->get_type(), self::ineligible_product_types(), true);
     }
@@ -132,7 +132,7 @@ final class Payflex_Eligibility
      */
     private static function excluded_by_optout($product)
     {
-        if(get_payflex_option('enable_product_exclusions') !== 'yes') return false;
+        if(payflex_get_option('enable_product_exclusions') !== 'yes') return false;
 
         if($product->get_meta(self::PRODUCT_META) === 'yes') return true;
 
@@ -150,7 +150,7 @@ final class Payflex_Eligibility
      */
     private static function excluded_by_category($product)
     {
-        $excluded = get_payflex_option('excluded_product_cats');
+        $excluded = payflex_get_option('excluded_product_cats');
 
         if(empty($excluded) OR !is_array($excluded)) return false;
 

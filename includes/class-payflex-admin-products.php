@@ -36,7 +36,7 @@ final class Payflex_Admin_Products
      */
     public static function enabled()
     {
-        return get_payflex_option('enable_product_exclusions') === 'yes';
+        return payflex_get_option('enable_product_exclusions') === 'yes';
     }
 
     /**
@@ -149,7 +149,7 @@ final class Payflex_Admin_Products
      */
     public static function category_excluded_product_count()
     {
-        $excluded = get_payflex_option('excluded_product_cats');
+        $excluded = payflex_get_option('excluded_product_cats');
 
         if(empty($excluded) OR !is_array($excluded)) return 0;
 

@@ -24,7 +24,7 @@ final class LimitsTest extends PF_TestCase
         ], '/configuration');
 
         $gateway->update_payment_limits();
-        $settings = get_payflex_option();
+        $settings = payflex_get_option();
 
         $this->assertSame(50, $settings['payflex_limit_amount_minimum']);
         $this->assertSame(20000, $settings['payflex_limit_amount_maximum']);
@@ -52,7 +52,7 @@ final class LimitsTest extends PF_TestCase
         PF_State::queue_json(200, ['somethingElse' => true], '/configuration');
 
         $gateway->update_payment_limits();
-        $settings = get_payflex_option();
+        $settings = payflex_get_option();
 
         $this->assertSame(0, $settings['payflex_limit_amount_minimum']);
         $this->assertSame(0, $settings['payflex_limit_amount_maximum']);
@@ -72,7 +72,7 @@ final class LimitsTest extends PF_TestCase
         PF_State::queue_json(503, ['message' => 'Service unavailable'], '/configuration');
         $gateway->update_payment_limits();
 
-        $settings = get_payflex_option();
+        $settings = payflex_get_option();
 
         $this->assertSame(50.0, $settings['payflex_limit_amount_minimum']);
         $this->assertSame(20000.0, $settings['payflex_limit_amount_maximum']);
@@ -87,7 +87,7 @@ final class LimitsTest extends PF_TestCase
         PF_State::queue_response(new WP_Error('http_request_failed', 'timeout'), '/configuration');
         $gateway->update_payment_limits();
 
-        $this->assertSame(50.0, get_payflex_option('payflex_limit_amount_minimum'));
+        $this->assertSame(50.0, payflex_get_option('payflex_limit_amount_minimum'));
     }
 
     /**
@@ -103,7 +103,7 @@ final class LimitsTest extends PF_TestCase
         PF_State::queue_json(200, ['minimumAmount' => 50, 'maximumAmount' => 20000], '/configuration');
 
         $gateway->update_payment_limits();
-        $settings = get_payflex_option();
+        $settings = payflex_get_option();
 
         $this->assertArrayNotHasKey('payflex-amount-minimum', $settings);
         $this->assertArrayNotHasKey('payflex-amount-maximum', $settings);

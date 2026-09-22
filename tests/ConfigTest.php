@@ -10,9 +10,9 @@ final class ConfigTest extends PF_TestCase
 
     private function environments(): array
     {
-        // config.php declares $environments in the including scope.
+        // config.php declares $payflex_environments in the including scope.
         require PAYFLEX_PLUGIN_ROOT . '/config/config.php';
-        return $environments;
+        return $payflex_environments;
     }
 
     public function test_defines_exactly_the_develop_and_production_environments(): void

@@ -1,7 +1,7 @@
 <?php
 
 /**
- * woo_payflex_frontend_widget() builds the calculator widget markup that the
+ * payflex_frontend_widget() builds the calculator widget markup that the
  * product page, checkout, shortcode and Gutenberg block all render.
  */
 final class WidgetTest extends PF_TestCase
@@ -18,7 +18,7 @@ final class WidgetTest extends PF_TestCase
         $this->set_settings();
         $GLOBALS['product'] = null;
 
-        $this->assertNull(woo_payflex_frontend_widget());
+        $this->assertNull(payflex_frontend_widget());
     }
 
     /**
@@ -30,7 +30,7 @@ final class WidgetTest extends PF_TestCase
         $this->set_settings();
         $this->withProduct(500.00, 'subscription');
 
-        $this->assertEmpty(woo_payflex_frontend_widget());
+        $this->assertEmpty(payflex_frontend_widget());
     }
 
     public function test_an_eligible_product_gets_the_widget_with_no_eligibility_flag(): void
@@ -38,7 +38,7 @@ final class WidgetTest extends PF_TestCase
         $this->set_settings();
         $this->withProduct(500.00);
 
-        $html = woo_payflex_frontend_widget();
+        $html = payflex_frontend_widget();
 
         $this->assertStringContainsString('class="payflexCalculatorWidgetContainer"', $html);
         $this->assertStringNotContainsString('eligible=', $html);
@@ -51,7 +51,7 @@ final class WidgetTest extends PF_TestCase
         $product = $this->withProduct(500.00);
         $product->meta[Payflex_Eligibility::PRODUCT_META] = 'yes';
 
-        $this->assertEmpty(woo_payflex_frontend_widget());
+        $this->assertEmpty(payflex_frontend_widget());
     }
 
     public function test_renders_the_widget_container_and_script(): void
@@ -59,7 +59,7 @@ final class WidgetTest extends PF_TestCase
         $this->set_settings();
         $this->withProduct(500.00);
 
-        $html = woo_payflex_frontend_widget();
+        $html = payflex_frontend_widget();
 
         $this->assertStringContainsString('class="payflexCalculatorWidgetContainer"', $html);
         $this->assertStringContainsString('https://widgets.payflex.co.za/2.0.3/payflex-widget.min.js', $html);
@@ -72,7 +72,7 @@ final class WidgetTest extends PF_TestCase
         $this->set_settings();
         $this->withProduct(1234.50);
 
-        $this->assertStringContainsString('&amount=1234.5', woo_payflex_frontend_widget());
+        $this->assertStringContainsString('&amount=1234.5', payflex_frontend_widget());
     }
 
     public function test_an_explicit_amount_overrides_the_product_price(): void
@@ -80,7 +80,7 @@ final class WidgetTest extends PF_TestCase
         $this->set_settings();
         $this->withProduct(500.00);
 
-        $html = woo_payflex_frontend_widget(99.99);
+        $html = payflex_frontend_widget(99.99);
 
         $this->assertStringContainsString('&amount=99.99', $html);
         $this->assertStringNotContainsString('&amount=500', $html);
@@ -91,7 +91,7 @@ final class WidgetTest extends PF_TestCase
         $this->set_settings(['widget_style' => 'navy', 'widget_theme' => 'dark', 'pay_type' => '3']);
         $this->withProduct(500.00);
 
-        $html = woo_payflex_frontend_widget();
+        $html = payflex_frontend_widget();
 
         $this->assertStringContainsString('data-widget-style="navy"', $html);
         $this->assertStringContainsString('data-theme="dark"', $html);
@@ -107,7 +107,7 @@ final class WidgetTest extends PF_TestCase
         $this->set_settings(['widget_style' => '', 'widget_theme' => '', 'pay_type' => '']);
         $this->withProduct(500.00);
 
-        $html = woo_payflex_frontend_widget();
+        $html = payflex_frontend_widget();
 
         $this->assertStringNotContainsString('data-theme=', $html);
         $this->assertStringNotContainsString('&theme=', $html);
@@ -120,7 +120,7 @@ final class WidgetTest extends PF_TestCase
         $this->set_settings(['widget_theme' => '<script>alert(1)</script>dark']);
         $this->withProduct(500.00);
 
-        $html = woo_payflex_frontend_widget();
+        $html = payflex_frontend_widget();
 
         $this->assertStringNotContainsString('<script>alert(1)', $html);
     }
@@ -137,7 +137,7 @@ final class WidgetTest extends PF_TestCase
         $this->set_settings(['widget_theme' => '">broken']);
         $this->withProduct(500.00);
 
-        $html = woo_payflex_frontend_widget();
+        $html = payflex_frontend_widget();
 
         $this->assertStringContainsString('data-theme="&quot;&gt;broken"', $html);
         $this->assertStringNotContainsString('data-theme="">broken"', $html);
@@ -153,10 +153,21 @@ final class WidgetTest extends PF_TestCase
         $this->set_settings(['widget_theme' => '">broken']);
         $this->withProduct(500.00);
 
-        $html = woo_payflex_frontend_widget();
+        $html = payflex_frontend_widget();
 
         $this->assertStringContainsString('&theme=%22%3Ebroken', $html);
         $this->assertStringNotContainsString('&theme=">broken', $html);
+    }
+
+    /**
+     * woo_payflex_frontend_widget() is the pre-rename name, kept as an alias
+     * because merchant themes may call it directly. Delete both together.
+     */
+    public function test_the_legacy_widget_function_name_still_works(): void
+    {
+        $this->withProduct(500.00);
+
+        $this->assertSame(payflex_frontend_widget(), woo_payflex_frontend_widget());
     }
 
     public function test_custom_css_is_emitted_in_a_style_block_with_tags_stripped(): void
@@ -164,7 +175,7 @@ final class WidgetTest extends PF_TestCase
         $this->set_settings(['widget_custom_css' => '.payflexCalculatorWidgetContainer { color: red; }']);
         $this->withProduct(500.00);
 
-        $html = woo_payflex_frontend_widget();
+        $html = payflex_frontend_widget();
 
         $this->assertStringStartsWith('<style>', $html);
         $this->assertStringContainsString('color: red;', $html);
@@ -175,7 +186,7 @@ final class WidgetTest extends PF_TestCase
         $this->set_settings(['widget_custom_css' => 'body{}</style><script>alert(1)</script>']);
         $this->withProduct(500.00);
 
-        $html = woo_payflex_frontend_widget();
+        $html = payflex_frontend_widget();
 
         $this->assertStringNotContainsString('<script>', substr($html, 0, (int) strpos($html, '</style>')));
         $this->assertStringNotContainsString('alert(1)', $html);
@@ -186,7 +197,7 @@ final class WidgetTest extends PF_TestCase
         $this->set_settings();
         $this->withProduct(500.00);
 
-        $this->assertStringStartsWith('<div', woo_payflex_frontend_widget());
+        $this->assertStringStartsWith('<div', payflex_frontend_widget());
     }
 
     /**
@@ -199,7 +210,7 @@ final class WidgetTest extends PF_TestCase
 
         $this->assertFalse($GLOBALS['payflex_product_page_widget_displayed']);
 
-        woo_payflex_frontend_widget();
+        payflex_frontend_widget();
 
         $this->assertTrue($GLOBALS['payflex_product_page_widget_displayed']);
     }
@@ -212,7 +223,7 @@ final class WidgetTest extends PF_TestCase
         $this->withProduct(500.00);
 
         ob_start();
-        widget_content();
+        payflex_widget_content();
         $this->assertSame('', ob_get_clean());
     }
 
@@ -222,7 +233,7 @@ final class WidgetTest extends PF_TestCase
         $this->withProduct(500.00);
 
         ob_start();
-        widget_content();
+        payflex_widget_content();
         $output = ob_get_clean();
 
         $this->assertStringContainsString('payflexCalculatorWidgetContainer', $output);
@@ -238,7 +249,7 @@ final class WidgetTest extends PF_TestCase
         $this->withProduct(500.00, 'subscription');
 
         ob_start();
-        widget_content();
+        payflex_widget_content();
 
         $this->assertSame('', ob_get_clean());
         $this->assertFalse($GLOBALS['payflex_product_page_widget_displayed']);
@@ -254,7 +265,7 @@ final class WidgetTest extends PF_TestCase
         $this->withProduct(500.00);
 
         ob_start();
-        widget_content();
+        payflex_widget_content();
         $output = ob_get_clean();
 
         $this->assertStringContainsString('payflexCalculatorWidgetContainer', $output);
@@ -265,7 +276,7 @@ final class WidgetTest extends PF_TestCase
         $this->set_settings();
         $this->withProduct(500.00);
 
-        $this->assertStringContainsString('payflexCalculatorWidgetContainer', widget_shortcode_content());
+        $this->assertStringContainsString('payflexCalculatorWidgetContainer', payflex_widget_shortcode_content());
     }
 
     /* --------------------------------------------------------------------- */
@@ -276,7 +287,7 @@ final class WidgetTest extends PF_TestCase
         $this->withProduct(500.00);
         PF_State::$is_admin = true;
 
-        $html = render_payflex_widget_block([]);
+        $html = payflex_render_widget_block([]);
 
         $this->assertStringContainsString('assets/widget-icon.png', $html);
         $this->assertStringNotContainsString('payflexCalculatorWidgetContainer', $html);
@@ -288,7 +299,7 @@ final class WidgetTest extends PF_TestCase
         $this->withProduct(500.00);
         PF_State::$is_admin = false;
 
-        $this->assertStringContainsString('payflexCalculatorWidgetContainer', render_payflex_widget_block([]));
+        $this->assertStringContainsString('payflexCalculatorWidgetContainer', payflex_render_widget_block([]));
     }
 
     /* --------------------------------------------------------------------- */
