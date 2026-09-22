@@ -322,7 +322,15 @@ add_action('payflex_do_cron_jobs', function (){
     $gateway = WC_Gateway_Partpay::instance();
 
     $gateway->check_pending_abandoned_orders();
-    $gateway->update_payment_limits();
+
+    # Refresh the limits through the cached accessor rather than calling
+    # update_payment_limits() directly. The refresh and retry intervals live in
+    # get_payflex_limits(), so going through it puts the sweep on the same
+    # backoff as a cart or checkout load instead of asking /configuration for a
+    # daily value every two minutes. The tick that finds the limits stale does
+    # the refresh, which is the point of doing it here: the shopper's page load
+    # then finds a warm cache.
+    $gateway->get_payflex_limits();
 });
 
 add_action('init', function ()

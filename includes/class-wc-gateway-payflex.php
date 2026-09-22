@@ -978,17 +978,21 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
             if(isset($settings['payflex-amount-maximum'])) unset($settings['payflex-amount-maximum']);
             if(isset($settings['payflex-amount-minimum'])) unset($settings['payflex-amount-minimum']);
 
-            if (!is_wp_error($response) && isset($response['response']['code']) && $response['response']['code'] == 200)
+            if ($this->limits_response_is_usable($response, $body))
             {
                 if($this->get_debug_mode()) $this->log('Updating payment limits');
-                
-                $settings['payflex_limit_amount_minimum']  = isset($body['minimumAmount']) ? $body['minimumAmount'] : 0;
-                $settings['payflex_limit_amount_maximum']  = isset($body['maximumAmount']) ? $body['maximumAmount'] : 0;
+
+                $settings['payflex_limit_amount_minimum']  = $body['minimumAmount'];
+                $settings['payflex_limit_amount_maximum']  = $body['maximumAmount'];
                 $settings['payflex_limit_refunds_enabled'] = isset($body['enabledForRefunds']) ? $body['enabledForRefunds'] : false;
 
                 // Only a refresh that actually returned limits holds for the full
                 // interval. A failure keeps the shorter retry backoff above.
                 $settings['payflex_limit_last_updated'] = time();
+            }
+            elseif($this->get_debug_mode())
+            {
+                $this->log('Payment limits not updated: the configuration response was unusable');
             }
         }
 
@@ -996,6 +1000,32 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
 
         $this->init_settings();
 
+    }
+
+    /**
+     * Whether a /configuration response can be stored as the account limits.
+     *
+     * A transport error or a non-200 is plainly unusable, but so is a 200 whose
+     * body does not carry both amounts. Those used to default to 0, which puts
+     * a maximum of 0 in front of every cart and so removes Payflex from
+     * checkout — and because the write stamped payflex_limit_last_updated, that
+     * held for the full refresh interval. Rejecting the response instead leaves
+     * the last known good limits in place and lets the shorter retry backoff
+     * try again.
+     *
+     * @param  array|WP_Error $response Raw wp_remote_get() result
+     * @param  mixed          $body     Decoded response body
+     * @return bool
+     */
+    private function limits_response_is_usable($response, $body)
+    {
+        if (is_wp_error($response)) return false;
+
+        if (!isset($response['response']['code']) OR 200 != $response['response']['code']) return false;
+
+        if (!is_array($body) OR !isset($body['minimumAmount'], $body['maximumAmount'])) return false;
+
+        return is_numeric($body['minimumAmount']) AND is_numeric($body['maximumAmount']);
     }
 
 

@@ -46,17 +46,103 @@ final class LimitsTest extends PF_TestCase
         $this->assertSame('Bearer cached-access-token', $request['args']['headers']['Authorization']);
     }
 
-    public function test_missing_amounts_in_the_api_response_become_zero(): void
+    public function test_an_absent_refund_flag_defaults_to_false(): void
     {
         $gateway = $this->gateway();
-        PF_State::queue_json(200, ['somethingElse' => true], '/configuration');
+        PF_State::queue_json(200, ['minimumAmount' => 50, 'maximumAmount' => 20000], '/configuration');
+
+        $gateway->update_payment_limits();
+
+        $this->assertFalse(payflex_get_option('payflex_limit_refunds_enabled'));
+    }
+
+    /**
+     * A 200 is not on its own a usable answer. The amounts used to default to
+     * 0 when the body did not carry them, which puts a maximum of 0 in front of
+     * every cart — so Payflex vanishes from checkout — and the write stamped a
+     * successful refresh, holding that for the full day.
+     */
+    public function test_a_200_without_the_amounts_leaves_existing_limits_intact(): void
+    {
+        $gateway = $this->gateway();
+        $this->withLimits(50.0, 20000.0);
+        PF_State::$http_standing = [];
+        PF_State::stub_json(200, ['somethingElse' => true], '/configuration');
 
         $gateway->update_payment_limits();
         $settings = payflex_get_option();
 
-        $this->assertSame(0, $settings['payflex_limit_amount_minimum']);
-        $this->assertSame(0, $settings['payflex_limit_amount_maximum']);
-        $this->assertFalse($settings['payflex_limit_refunds_enabled']);
+        $this->assertSame(50.0, $settings['payflex_limit_amount_minimum']);
+        $this->assertSame(20000.0, $settings['payflex_limit_amount_maximum']);
+    }
+
+    public function test_a_200_without_the_amounts_does_not_count_as_a_successful_refresh(): void
+    {
+        $gateway = $this->gateway();
+        PF_State::$http_standing = [];
+        PF_State::stub_json(200, ['somethingElse' => true], '/configuration');
+
+        $gateway->update_payment_limits();
+
+        $settings = get_option('woocommerce_payflex_settings', []);
+
+        $this->assertArrayNotHasKey('payflex_limit_last_updated', $settings);
+        $this->assertArrayHasKey('payflex_limit_last_attempt', $settings, 'The attempt still has to back off');
+    }
+
+    /**
+     * The consequence the guard exists for: a shopper whose cart is well inside
+     * the real limits still gets offered Payflex after a malformed refresh.
+     */
+    public function test_a_200_without_the_amounts_leaves_the_gateway_at_checkout(): void
+    {
+        $gateway = $this->gateway();
+        $this->withLimits(50.0, 20000.0);
+        PF_State::$http_standing = [];
+        PF_State::stub_json(200, ['somethingElse' => true], '/configuration');
+        PF_State::$cart_total = 750.0;
+
+        $gateway->update_payment_limits();
+
+        $this->assertArrayHasKey('payflex', $gateway->check_cart_within_limits($this->gateways()));
+    }
+
+    public function test_a_200_carrying_only_one_of_the_two_amounts_is_rejected(): void
+    {
+        $gateway = $this->gateway();
+        $this->withLimits(50.0, 20000.0);
+        PF_State::$http_standing = [];
+        PF_State::stub_json(200, ['minimumAmount' => 100], '/configuration');
+
+        $gateway->update_payment_limits();
+
+        $this->assertSame(50.0, payflex_get_option('payflex_limit_amount_minimum'));
+        $this->assertSame(20000.0, payflex_get_option('payflex_limit_amount_maximum'));
+    }
+
+    public function test_a_200_with_non_numeric_amounts_is_rejected(): void
+    {
+        $gateway = $this->gateway();
+        $this->withLimits(50.0, 20000.0);
+        PF_State::$http_standing = [];
+        PF_State::stub_json(200, ['minimumAmount' => 'n/a', 'maximumAmount' => null], '/configuration');
+
+        $gateway->update_payment_limits();
+
+        $this->assertSame(50.0, payflex_get_option('payflex_limit_amount_minimum'));
+        $this->assertSame(20000.0, payflex_get_option('payflex_limit_amount_maximum'));
+    }
+
+    /** Numeric strings are a legitimate JSON shape and must still be accepted. */
+    public function test_amounts_sent_as_numeric_strings_are_accepted(): void
+    {
+        $gateway = $this->gateway();
+        PF_State::queue_json(200, ['minimumAmount' => '50', 'maximumAmount' => '20000'], '/configuration');
+
+        $gateway->update_payment_limits();
+
+        $this->assertEquals(50, payflex_get_option('payflex_limit_amount_minimum'));
+        $this->assertEquals(20000, payflex_get_option('payflex_limit_amount_maximum'));
     }
 
     /**

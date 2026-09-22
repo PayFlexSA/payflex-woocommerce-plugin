@@ -376,6 +376,79 @@ final class CronTest extends PF_TestCase
         $this->assertTrue($order->pf_data()->payment_completed);
     }
 
+    /* --------------------------------------------------------------------- */
+
+    /**
+     * The sweep also refreshes the Payflex payment limits. Those are a daily
+     * value and the sweep runs every two minutes, so it goes through
+     * get_payflex_limits() rather than calling update_payment_limits()
+     * directly — that puts it on the same refresh and retry backoff as a cart
+     * or checkout load instead of one /configuration call per tick.
+     */
+    public function test_the_sweep_does_not_refresh_limits_that_are_still_fresh(): void
+    {
+        $this->gateway();
+        $this->withLimits(50.0, 20000.0);
+        PF_State::$is_checkout = false;
+
+        do_action('payflex_do_cron_jobs');
+        do_action('payflex_do_cron_jobs');
+        do_action('payflex_do_cron_jobs');
+
+        $this->assertCount(0, $this->configurationCalls(), 'A daily value must not be re-fetched every two minutes');
+    }
+
+    public function test_the_sweep_refreshes_limits_once_they_are_stale(): void
+    {
+        $this->gateway();
+        $this->withLimits(50.0, 20000.0);
+        $this->ageTheLimitCache(WC_Gateway_PartPay::LIMIT_REFRESH_INTERVAL + 1);
+        PF_State::$is_checkout = false;
+
+        do_action('payflex_do_cron_jobs');
+        do_action('payflex_do_cron_jobs');
+
+        $this->assertCount(1, $this->configurationCalls(), 'Stale limits are refreshed once, then cached again');
+    }
+
+    /**
+     * A sweep that cannot reach /configuration must not retry on the next tick,
+     * or an endpoint that is down is hit every two minutes for as long as it is.
+     */
+    public function test_a_failed_limits_refresh_backs_off_across_sweeps(): void
+    {
+        $this->gateway();
+        $this->withLimits(50.0, 20000.0);
+        $this->ageTheLimitCache(WC_Gateway_PartPay::LIMIT_REFRESH_INTERVAL + 1);
+        PF_State::$http_standing = [];
+        PF_State::stub_json(500, [], '/configuration');
+        PF_State::$is_checkout = false;
+
+        do_action('payflex_do_cron_jobs');
+        do_action('payflex_do_cron_jobs');
+        do_action('payflex_do_cron_jobs');
+
+        $this->assertCount(1, $this->configurationCalls(), 'A failing endpoint must not be hit on every sweep');
+    }
+
+    /** Pushes the stored refresh timestamp $seconds into the past. */
+    private function ageTheLimitCache(int $seconds): void
+    {
+        $settings = get_option('woocommerce_payflex_settings', []);
+        $settings['payflex_limit_last_updated'] = time() - $seconds;
+        update_option('woocommerce_payflex_settings', $settings);
+    }
+
+    private function configurationCalls(): array
+    {
+        return array_filter(
+            PF_State::requested_urls(),
+            fn($url) => str_contains($url, '/configuration')
+        );
+    }
+
+    /* --------------------------------------------------------------------- */
+
     public function test_activation_schedules_and_deactivation_clears_the_cron_job(): void
     {
         payflex_create_wpcronjob();
