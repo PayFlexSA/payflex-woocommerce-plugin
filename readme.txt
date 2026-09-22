@@ -1,5 +1,5 @@
 === Payflex Payment Gateway ===
-Contributors: tomlister, nmjbhoffmann, nathanjeffery
+Contributors: jeaninew00, nmjbhoffmann, nathanjeffery
 Tags: payment gateway, woocommerce, buy now pay later
 Requires at least: 6.0
 Tested up to: 7.1.1
