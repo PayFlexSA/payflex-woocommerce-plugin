@@ -2,7 +2,7 @@
 /*
  * Plugin Name: Payflex Payment Gateway
  * Description: Payflex payment gateway plugin for WooCommerce. Supports pay now as well as buy now pay later.
- * Version: 2.7.1
+ * Version: 2.8.0
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Author: Payflex

@@ -2,9 +2,9 @@
 Contributors: tomlister, nmjbhoffmann, nathanjeffery
 Tags: payment gateway, woocommerce, buy now pay later
 Requires at least: 6.0
-Tested up to: 7.1
+Tested up to: 7.1.1
 Requires PHP: 7.4
-Stable tag: 2.7.1
+Stable tag: 2.8.0
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -37,6 +37,17 @@ We don’t believe in tying our merchants into long-term commitments. We’re in
 That’s our problem. You get 100% of the purchase amount (less the Payflex fee) paid in full upfront.
 
 == Changelog ==
+
+= 2.8.0 =
+     * Added Widget Only mode, for stores that want the product widget without offering Payflex at checkout
+     * Added the ability to disable Payflex per product, by product category, and for carts containing subscriptions
+     * Security: output escaping, nonce and capability checks on admin actions, and safe redirects throughout
+     * Rate limited the min/max payment limit lookup, so a failed refresh backs off instead of retrying on every request
+     * Global functions and variables are now prefixed to prevent collisions with other plugins
+     * Important: if your theme or custom code uses remove_action() or remove_filter() with an old function name, it must be updated to the new prefixed name or it will silently stop working. The most likely case is remove_action('woocommerce_single_product_summary', 'widget_content', 12), used to move or hide the product widget - widget_content is now payflex_widget_content. The [payflex_widget] shortcode, the payflex/widget block and all hook names are unchanged
+     * Updated text domain to payflex-payment-gateway
+     * Improved WooCommerce detection and store URL handling on non-standard installations
+     * Updated tested version to 7.1.1
 
 = 2.7.1 =
      * Added automated testing and updated tested version to 7.0.2
