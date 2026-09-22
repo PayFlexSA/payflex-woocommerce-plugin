@@ -409,7 +409,7 @@ function widget_content()
     // $payflex_product_page_widget_displayed and has already set it by here.
     if(!$widget) return;
 
-    echo $widget;
+    echo $widget; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- woo_payflex_frontend_widget() is the trust boundary: it builds this markup itself and escapes the values that enter it. The markup contains the hosted widget <script> and the merchant's <style> block, both of which wp_kses_post() would strip.
 
 }
 global $wp_version;
@@ -459,16 +459,16 @@ function woo_payflex_frontend_widget($amount = false)
     {
         $payflex_settings['widget_style'] = sanitize_text_field($payflex_settings['widget_style']);
 
-        $widget_style_div = 'data-widget-style="'.$payflex_settings['widget_style'].'" ';
-        $widget_style     = '&logo_type='.$payflex_settings['widget_style'];
+        $widget_style_div = 'data-widget-style="'.esc_attr($payflex_settings['widget_style']).'" ';
+        $widget_style     = '&logo_type='.rawurlencode($payflex_settings['widget_style']);
     }
 
     if(isset($payflex_settings['widget_theme']) AND $payflex_settings['widget_theme'])
     {
         $payflex_settings['widget_theme'] = sanitize_text_field($payflex_settings['widget_theme']);
 
-        $theme_div = 'data-theme="'.$payflex_settings['widget_theme'].'" ';
-        $theme     = '&theme='.$payflex_settings['widget_theme'];
+        $theme_div = 'data-theme="'.esc_attr($payflex_settings['widget_theme']).'" ';
+        $theme     = '&theme='.rawurlencode($payflex_settings['widget_theme']);
     }
 
 
@@ -476,8 +476,8 @@ function woo_payflex_frontend_widget($amount = false)
     {
         $payflex_settings['pay_type'] = sanitize_text_field($payflex_settings['pay_type']);
 
-        $pay_type_div = 'data-pay_type="'.$payflex_settings['pay_type'].'" ';
-        $pay_type     = '&pay_type='.$payflex_settings['pay_type'];
+        $pay_type_div = 'data-pay_type="'.esc_attr($payflex_settings['pay_type']).'" ';
+        $pay_type     = '&pay_type='.rawurlencode($payflex_settings['pay_type']);
     }
 
     if(isset($payflex_settings['merchant_widget_reference']) AND $payflex_settings['merchant_widget_reference'])
@@ -567,9 +567,9 @@ function render_payflex_widget_block($attributes) {
     ob_start();
     // If were in the page builder, just show an image, if were rendering the block on the front end, show the widget
     if (is_admin()) {
-        echo '<img src="' . plugins_url('assets/widget-icon.png', __FILE__) . '" alt="Payflex Widget" />';
+        echo '<img src="' . esc_url(plugins_url('assets/widget-icon.png', __FILE__)) . '" alt="Payflex Widget" />';
     } else {
-        echo woo_payflex_frontend_widget();
+        echo woo_payflex_frontend_widget(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- woo_payflex_frontend_widget() is the trust boundary: it builds this markup itself and escapes the values that enter it. The markup contains the hosted widget <script> and the merchant's <style> block, both of which wp_kses_post() would strip.
     }
     return ob_get_clean();
 }

@@ -354,7 +354,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
     public function admin_info_block()
     {
     ?>
-        <p><a href="<?php echo admin_url('admin.php?page=payflex-support'); ?>"><?php esc_html_e('Support Information', 'payflex-payment-gateway'); ?></a></p>
+        <p><a href="<?php echo esc_url(admin_url('admin.php?page=payflex-support')); ?>"><?php esc_html_e('Support Information', 'payflex-payment-gateway'); ?></a></p>
     <?php
     }
     
@@ -421,26 +421,26 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
         $ordertotal = $woocommerce
             ->cart->total;
         $installment = round(($ordertotal / 4) , 2);
-        echo '<div class="fontcolor" style="font-size:16px;text-align:center">Four interest-free payments totalling R' . $ordertotal . '</div>';
+        echo '<div class="fontcolor" style="font-size:16px;text-align:center">Four interest-free payments totalling R' . esc_html($ordertotal) . '</div>';
         echo '<div class="md-stepper-horizontal orange">
                 <div class="md-step active">
-                <div class="md-step-title">R' . $installment . '</div>
-                <div class="md-step-circle"><span><img src ="' . $this->plugin_url('PIE-CHART-01.png') . '"></span></div>
+                <div class="md-step-title">R' . esc_html($installment) . '</div>
+                <div class="md-step-circle"><span><img src ="' . esc_url($this->plugin_url('PIE-CHART-01.png')) . '"></span></div>
                 <div class="md-step-optional">1st instalment</div>
                 </div>
                 <div class="md-step active">
-                <div class="md-step-title">R' . $installment . '</div>
-                <div class="md-step-circle"><span><img src ="' . $this->plugin_url('PIE-CHART-02.png') . '"></span></div>
+                <div class="md-step-title">R' . esc_html($installment) . '</div>
+                <div class="md-step-circle"><span><img src ="' . esc_url($this->plugin_url('PIE-CHART-02.png')) . '"></span></div>
                 <div class="md-step-optional">2 weeks later</div>
                 </div>
                 <div class="md-step active">
-                <div class="md-step-title">R' . $installment . '</div>
-                <div class="md-step-circle"><span><img src ="' . $this->plugin_url('PIE-CHART-03.png') . '"></span></div>
+                <div class="md-step-title">R' . esc_html($installment) . '</div>
+                <div class="md-step-circle"><span><img src ="' . esc_url($this->plugin_url('PIE-CHART-03.png')) . '"></span></div>
                 <div class="md-step-optional">4 weeks later</div>
                 </div>
                 <div class="md-step active">
-                <div class="md-step-title">R' . $installment . '</div>
-                <div class="md-step-circle"><span><img src ="' . $this->plugin_url('PIE-CHART-04.png') . '"></span></div>
+                <div class="md-step-title">R' . esc_html($installment) . '</div>
+                <div class="md-step-circle"><span><img src ="' . esc_url($this->plugin_url('PIE-CHART-04.png')) . '"></span></div>
                 <div class="md-step-optional">6 weeks later</div>
                 </div>
             </div>
@@ -472,6 +472,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
      * @return void
      */
     static function payflex_support_page() {
+        // phpcs:disable Generic.PHP.DisallowShortOpenTag.EchoFound -- Admin template block; short echo tags are unconditionally available on PHP 5.4+.
         $WC                       = WC_Gateway_PartPay::instance();
         $check_php_version        = version_compare(PHP_VERSION, '8.1', '>=');
         $payflex_api_accessable   = ($WC->get_payflex_authorization_code() !== false);
@@ -541,9 +542,9 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
             <h1>Payflex Support</h1>
             <span>
             <?php if($redirect_url): ?>
-                <a href="<?=$redirect_url?>">Back to Previous Page</a> | 
+                <a href="<?=esc_url($redirect_url)?>">Back to Previous Page</a> | 
             <?php endif; ?>
-            <a href="<?=admin_url('admin.php?page=wc-settings&tab=checkout&section=payflex')?>">Payflex Settings</a>
+            <a href="<?=esc_url(admin_url('admin.php?page=wc-settings&tab=checkout&section=payflex'))?>">Payflex Settings</a>
             </span>
             <div class="debug_table_wrapper">
             
@@ -556,7 +557,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
                     <tr>
                         <td>Payflex Plugin Version: </td>
                         <td>
-                            <span class="">v<?=$WC->version?></span>
+                            <span class="">v<?=esc_html($WC->version)?></span>
                         </td>
                     </tr>
                     <?php if(payflex_widget_only_enabled()): ?>
@@ -584,9 +585,9 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
                         <td>WordPress Version: </td>
                         <td>
                             <?php if(version_compare(get_bloginfo('version'), '6.5', '>=')): ?>
-                                <span class="payflex_debug_success">WordPress v<?=get_bloginfo('version')?></span>
+                                <span class="payflex_debug_success">WordPress v<?=esc_html(get_bloginfo('version'))?></span>
                             <?php else:?>
-                                <span class="payflex_debug_error">WordPress v<?=get_bloginfo('version')?> Isn't officially supported</span>
+                                <span class="payflex_debug_error">WordPress v<?=esc_html(get_bloginfo('version'))?> Isn't officially supported</span>
                             <?php endif; ?>
                         </td>
                     </tr>
@@ -594,11 +595,11 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
                         <td>WooCommerce Version: </td>
                         <td>
                             <?php if(version_compare(WC()->version, '9.6', '>=')): ?>
-                                <span class="payflex_debug_success">WooCommerce v<?=WC()->version?></span>
+                                <span class="payflex_debug_success">WooCommerce v<?=esc_html(WC()->version)?></span>
                             <?php elseif(version_compare(WC()->version, '9.0', '>')): ?>
-                                <span class="payflex_debug_warning">WooCommerce v<?=WC()->version?> Isn't officially supported, but isn't too old and should work with possible minor bugs, please consider updating Woocommerce</span>
+                                <span class="payflex_debug_warning">WooCommerce v<?=esc_html(WC()->version)?> Isn't officially supported, but isn't too old and should work with possible minor bugs, please consider updating Woocommerce</span>
                             <?php else:?>
-                                <span class="payflex_debug_error">WooCommerce v<?=WC()->version?> is seriously outdated, please update Woocommerce as soon as possible</span>
+                                <span class="payflex_debug_error">WooCommerce v<?=esc_html(WC()->version)?> is seriously outdated, please update Woocommerce as soon as possible</span>
                             <?php endif; ?>
                         </td>
                     </tr>
@@ -629,9 +630,9 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
                     <tr>
                         <td>Plugins:</td>
                         <td>
-                            <span class="payflex_debug_success"><?=$plugin_count?> Active</span>
+                            <span class="payflex_debug_success"><?=esc_html($plugin_count)?> Active</span>
                             <?php if($outdated_plugins): ?>
-                                <span class="payflex_debug_warning">(<?=$outdated_plugins?> Outdated)</span>
+                                <span class="payflex_debug_warning">(<?=esc_html($outdated_plugins)?> Outdated)</span>
                             <?php endif; ?>
                         </td>
                     </tr>
@@ -639,7 +640,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
                         <td>Payflex Authentication:</td>
                         <td>
                             <?php if($payflex_api_accessable): ?>
-                                <span class="payflex_debug_success">Successful <?=$api_token_date?></span>
+                                <span class="payflex_debug_success">Successful <?=esc_html($api_token_date)?></span>
                             <?php else:?>
                                 <span class="payflex_debug_error">Authentication Error</span>
                             <?php endif; ?>
@@ -659,8 +660,8 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
                                     <?=count($cron_orders['scheduled'])?> Order<?=(count($cron_orders['scheduled']) !== 1 ? 's' : '')?> currently in queue.
                                 </div>
                                 <div>
-                                    <form method="get" action="<?=admin_url('admin.php');?>">
-                                        <input type="hidden" name="redirect_url" value="<?=$redirect_url?>">
+                                    <form method="get" action="<?=esc_url(admin_url('admin.php'));?>">
+                                        <input type="hidden" name="redirect_url" value="<?=esc_attr($redirect_url)?>">
                                         <input type="hidden" name="page" value="payflex-support">
                                         <?php wp_nonce_field('payflex_force_cron', 'payflex_force_cron_nonce', false); ?>
                                         <input type="submit" name="force_cron" value="Force Check">
@@ -696,7 +697,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
                                     1. Initial settings have not been saved</br> 
                                     2. Fields were updated in a recent version</br>
                                     3. Settings were lost or corrupted</br>
-                                    Visit the <a href="<?=admin_url('admin.php?page=wc-settings&tab=checkout&section=payflex')?>">Payflex settings</a> page to verify your configuration.</br>
+                                    Visit the <a href="<?=esc_url(admin_url('admin.php?page=wc-settings&tab=checkout&section=payflex'))?>">Payflex settings</a> page to verify your configuration.</br>
                                 </span>
                             <?php endif; ?>
                         </td>
@@ -705,19 +706,19 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
                         <td>Woocommerce Log Files</td>
                         <td>
                             <?php if($is_logging_enabled): ?>
-                                <span class="payflex_debug_success">Woocommerce logging enabled: </span><a href="<?=admin_url('admin.php?page=wc-status&tab=logs')?>">View Logs</a>
+                                <span class="payflex_debug_success">Woocommerce logging enabled: </span><a href="<?=esc_url(admin_url('admin.php?page=wc-status&tab=logs'))?>">View Logs</a>
                             <?php else:?>
-                                <span class="payflex_debug_error">Woocommerce logging disabled. Payflex will not save logs. You can enable it here:</span> <a href="<?=admin_url('admin.php?page=wc-status&tab=logs&view=settings')?>">Woocommerce Log settings</a>
+                                <span class="payflex_debug_error">Woocommerce logging disabled. Payflex will not save logs. You can enable it here:</span> <a href="<?=esc_url(admin_url('admin.php?page=wc-status&tab=logs&view=settings'))?>">Woocommerce Log settings</a>
                             <?php endif; ?>
                         </td>
                     </tr>
                     <tr class="no-border">
                         <td>Lookup Order ID</td>
                         <td>
-                            <form method="get" action="<?=admin_url('admin.php');?>">
+                            <form method="get" action="<?=esc_url(admin_url('admin.php'));?>">
                                 <input type="hidden" name="page" value="payflex-support">
                                 <?php if($redirect_url): ?>
-                                    <input type="hidden" name="redirect_url" value="<?=$redirect_url?>">
+                                    <input type="hidden" name="redirect_url" value="<?=esc_attr($redirect_url)?>">
                                 <?php endif; ?>
                                 <input type="text" id="payflex_order_id" name="payflex_order_id" value="<?=esc_attr($payflex_order_id)?>" style="width:300px;" placeholder="Order ID">
                                 <input type="submit" value="Lookup">
@@ -771,7 +772,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
                         <tr>
                             <td>Order Date</td>
                             <?php $date = new DateTime($payflex_order->createdDateTime); ?>
-                            <td> <?=$date->format('Y-m-d H:i:s')?></td>
+                            <td> <?=esc_html($date->format('Y-m-d H:i:s'))?></td>
                         </tr>
                         <tr class="no-border">
                             <td>Order Email</td>
@@ -855,6 +856,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
         </style>
         </div>
         <?php
+        // phpcs:enable Generic.PHP.DisallowShortOpenTag.EchoFound
     }
 
 

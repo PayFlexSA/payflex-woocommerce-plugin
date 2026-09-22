@@ -126,25 +126,37 @@ final class WidgetTest extends PF_TestCase
     }
 
     /**
-     * KNOWN DEFECT — characterisation test, not an endorsement.
+     * Widget settings are sanitised with sanitize_text_field() and then escaped
+     * with esc_attr() on their way into the container's data attributes, so a
+     * value containing a double quote is encoded rather than closing the
+     * attribute and terminating the container div early.
      *
-     * Widget settings go through sanitize_text_field() but never esc_attr(), so
-     * a value containing a double quote escapes its attribute and terminates
-     * the container div early. Only users who can edit WooCommerce settings can
-     * reach this, which is why it is low severity rather than none.
-     *
-     * If esc_attr() is added to woo_payflex_frontend_widget(), this test will
-     * fail — replace it with an assertion that the quote is encoded.
      */
-    public function test_widget_settings_are_not_attribute_escaped(): void
+    public function test_widget_settings_are_escaped_in_the_container_data_attributes(): void
     {
         $this->set_settings(['widget_theme' => '">broken']);
         $this->withProduct(500.00);
 
         $html = woo_payflex_frontend_widget();
 
-        $this->assertStringContainsString('data-theme="">broken"', $html);
-        $this->assertStringNotContainsString('data-theme="&quot;&gt;broken"', $html);
+        $this->assertStringContainsString('data-theme="&quot;&gt;broken"', $html);
+        $this->assertStringNotContainsString('data-theme="">broken"', $html);
+    }
+
+    /**
+     * The same settings are appended to the hosted script's query string, where
+     * they are rawurlencode()d, so a double quote cannot close the src attribute
+     * or inject further parameters.
+     */
+    public function test_widget_settings_are_url_encoded_in_the_script_query_string(): void
+    {
+        $this->set_settings(['widget_theme' => '">broken']);
+        $this->withProduct(500.00);
+
+        $html = woo_payflex_frontend_widget();
+
+        $this->assertStringContainsString('&theme=%22%3Ebroken', $html);
+        $this->assertStringNotContainsString('&theme=">broken', $html);
     }
 
     public function test_custom_css_is_emitted_in_a_style_block_with_tags_stripped(): void

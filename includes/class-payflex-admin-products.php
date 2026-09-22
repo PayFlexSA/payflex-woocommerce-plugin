@@ -63,7 +63,7 @@ final class Payflex_Admin_Products
         if(!self::enabled()) return;
         if(!isset($_GET['post_type']) OR $_GET['post_type'] !== 'product') return; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only list-table screen check that only decides whether to print a column width; nothing is changed.
 
-        echo '<style>.wp-list-table .column-' . self::COLUMN . '{width:150px}</style>';
+        echo '<style>.wp-list-table .column-' . esc_attr(self::COLUMN) . '{width:150px}</style>';
     }
 
     /**
@@ -100,7 +100,7 @@ final class Payflex_Admin_Products
         {
             $selected = $current === $value ? ' selected="selected"' : '';
 
-            echo '<option value="' . esc_attr($value) . '"' . $selected . '>' . esc_html($label) . '</option>';
+            echo '<option value="' . esc_attr($value) . '"' . $selected . '>' . esc_html($label) . '</option>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $selected is the literal attribute fragment built on the line above, not data; escaping it would print the markup instead of applying it. The value and label either side are escaped.
         }
 
         echo '</select>';
