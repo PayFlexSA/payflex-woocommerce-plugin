@@ -221,12 +221,44 @@ final class SupportPageTest extends PF_TestCase
         ]);
 
         PF_State::stub_json(200, ['orderStatus' => 'Approved'], '/order/');
-        $_GET = ['force_cron' => 'Force Check'];
+        PF_State::$user_can = true;
+        $_GET = [
+            'force_cron'               => 'Force Check',
+            'payflex_force_cron_nonce' => wp_create_nonce('payflex_force_cron'),
+        ];
 
         $output = $this->render();
 
         $this->assertStringContainsString('Checked Orders!', $output);
         $this->assertTrue($order->pf_data()->payment_completed);
+    }
+
+    /**
+     * The sweep calls the Payflex API and can complete orders, so a link an
+     * admin is tricked into loading must not be able to trigger it.
+     */
+    public function test_the_force_check_sweep_is_ignored_without_a_valid_nonce(): void
+    {
+        $this->gateway();
+        $this->withLimits();
+        $order = $this->order([
+            'id'           => '7004',
+            'date_created' => time() - 120,
+            'meta'         => [
+                '_payflex_order_id'        => 'PF-7004',
+                '_payflex_order_token'     => 'tok',
+                '_payflex_workflow_status' => 'initiated',
+            ],
+        ]);
+
+        PF_State::stub_json(200, ['orderStatus' => 'Approved'], '/order/');
+        PF_State::$user_can = true;
+        $_GET = ['force_cron' => 'Force Check'];
+
+        $output = $this->render();
+
+        $this->assertStringNotContainsString('Checked Orders!', $output);
+        $this->assertFalse($order->pf_data()->payment_completed);
     }
 
     public function test_the_order_lookup_renders_the_remote_order_details(): void

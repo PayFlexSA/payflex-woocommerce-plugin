@@ -480,10 +480,12 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
 
         if(isset($_GET['redirect_url']))
         {
-            $redirect_url = $returned_token = sanitize_url(urldecode($_GET['redirect_url']));
+            $redirect_url = $returned_token = sanitize_url(urldecode(wp_unslash($_GET['redirect_url']))); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitize_url() does sanitise it; WPCS only recognises a sanitiser wrapping the input directly, not through urldecode().
 
             // Validate redirect
-            if(!filter_var($redirect_url, FILTER_VALIDATE_URL) OR parse_url($redirect_url, PHP_URL_HOST) !== $_SERVER['HTTP_HOST'])
+            $request_host = isset($_SERVER['HTTP_HOST']) ? sanitize_text_field(wp_unslash($_SERVER['HTTP_HOST'])) : '';
+
+            if(!filter_var($redirect_url, FILTER_VALIDATE_URL) OR parse_url($redirect_url, PHP_URL_HOST) !== $request_host)
             {
                 $redirect_url = FALSE;
             }
@@ -499,9 +501,13 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
             $payflex_order = $WC->payflex_remote_get_order($payflex_order_id);
         }
 
-        // Force cron check
+        // Force cron check. This calls the Payflex API and can complete orders, so
+        // it needs the admin capability and a nonce rather than a bare GET.
         $running_cron = FALSE;
-        if(isset($_GET['force_cron']) && $_GET['force_cron'] == 'Force Check')
+        $force_cron   = isset($_GET['force_cron']) ? sanitize_text_field(wp_unslash($_GET['force_cron'])) : '';
+        $force_nonce  = isset($_GET['payflex_force_cron_nonce']) ? sanitize_text_field(wp_unslash($_GET['payflex_force_cron_nonce'])) : '';
+
+        if($force_cron === 'Force Check' AND current_user_can('manage_options') AND wp_verify_nonce($force_nonce, 'payflex_force_cron'))
         {
             $running_cron = TRUE;
             $WC->check_pending_abandoned_orders(true);
@@ -656,6 +662,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
                                     <form method="get" action="<?=admin_url('admin.php');?>">
                                         <input type="hidden" name="redirect_url" value="<?=$redirect_url?>">
                                         <input type="hidden" name="page" value="payflex-support">
+                                        <?php wp_nonce_field('payflex_force_cron', 'payflex_force_cron_nonce', false); ?>
                                         <input type="submit" name="force_cron" value="Force Check">
                                     </form>
                                     <div>
@@ -780,6 +787,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
                 window.onload = function(){
                     var url = new URL(window.location.href);
                     url.searchParams.delete('force_cron');
+                    url.searchParams.delete('payflex_force_cron_nonce');
                     window.history.replaceState({}, document.title, url);
 
                     // Remove cron_check_message after 3 seconds
@@ -1087,7 +1095,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
         // Last resort: the host this request came in on.
         if (!empty($_SERVER['HTTP_HOST']))
         {
-            $host = wp_unslash($_SERVER['HTTP_HOST']);
+            $host = wp_unslash($_SERVER['HTTP_HOST']); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Validated by the strict hostname regex below, which is stricter than any sanitiser.
 
             if (preg_match('/^[A-Za-z0-9\.\-]+(:[0-9]+)?$/', $host))
             {
@@ -1554,15 +1562,15 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
         }
 
         // Make sure the order id is set
-        if(!isset($_GET['order_id']) OR !isset($_GET['status']) OR !isset($_GET['token']))
+        if(!isset($_GET['order_id']) OR !isset($_GET['status']) OR !isset($_GET['token'])) // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Return leg from Payflex's hosted checkout: Payflex builds this URL, so it cannot carry a nonce. The token is verified against the stored order token below.
         {
             $this->log('Invalid callback data received on payment callback');
             $this->payflex_redirect_failed();
         }
 
-        $returned_order_id = sanitize_text_field($_GET['order_id']);
-        $returned_status   = sanitize_text_field($_GET['status']);
-        $returned_token    = sanitize_text_field($_GET['token']);
+        $returned_order_id = sanitize_text_field(wp_unslash($_GET['order_id'])); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Payflex return URL; authenticity comes from the token check below.
+        $returned_status   = sanitize_text_field(wp_unslash($_GET['status'])); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Payflex return URL; the status is re-read from the Payflex API rather than trusted.
+        $returned_token    = sanitize_text_field(wp_unslash($_GET['token'])); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Payflex return URL; this token is the secret and is compared with the stored order token below.
 
         if($this->current_order_proccessed === $returned_order_id)
         {
@@ -1674,21 +1682,21 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
         $order = $this->get_order($order_id);
         $this->log('Payflex redirect success for order ' . $order_id);
         // Load success page
-        wp_redirect($this->get_return_url($order)); exit;
+        wp_safe_redirect($this->get_return_url($order)); exit;
     }
 
     public function payflex_redirect_unknown($order_id = false)
     {
         $order = $this->get_order($order_id);
         $this->log('Payflex redirect unknown for order ' . $order_id);
-        wp_redirect($this->get_return_url($order)); exit;
+        wp_safe_redirect($this->get_return_url($order)); exit;
     }
 
     public function payflex_redirect_failed($order_id = false)
     {
         $order = $this->get_order($order_id);
         $this->log('Payflex redirect failed for order ' . $order_id);
-        wp_redirect($this->get_return_url($order)); exit;
+        wp_safe_redirect($this->get_return_url($order)); exit;
     }
 
     /**
@@ -1698,9 +1706,9 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
      */
     public function page_check_remote_status()
     {
-        if(isset($_GET['order_id']))
+        if(isset($_GET['order_id'])) // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Return leg from Payflex's hosted checkout, so no nonce is possible; the order's stored Payflex id and token are required below.
         {
-            $order_id = sanitize_text_field($_GET['order_id']);
+            $order_id = sanitize_text_field(wp_unslash($_GET['order_id'])); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Return leg from Payflex's hosted checkout; validated against the stored Payflex order id and token below.
             $order = $this->get_order($order_id);
             $remote_order_status = $this->payflex_remote_check_order_status($order_id);
             $payflex_order_id    = $this->get_payflex_order_id($order_id);
@@ -1709,14 +1717,14 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
             if(!$remote_order_status OR !$payflex_order_id OR !$payflex_order_token)
             {
                 $this->log('Invalid callback data received on payment callback');
-                wp_redirect($this->get_return_url($order)); exit;
+                wp_safe_redirect($this->get_return_url($order)); exit;
             }
 
             $this->log('Remote status check for order ' . $order_id . ' returned ' . $remote_order_status);
 
             $order_note = sprintf(__('Remote status check for order ' . $order_id . ' returned ' . $remote_order_status, 'payflex-payment-gateway'));
             $order->add_order_note($order_note);
-            wp_redirect($this->get_return_url($order)); exit;
+            wp_safe_redirect($this->get_return_url($order)); exit;
         }
     }
 

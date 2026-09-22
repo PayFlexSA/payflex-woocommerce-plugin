@@ -251,9 +251,9 @@ trait WC_Gateway_Payflex_Form_Fields
     private function on_settings_screen()
     {
         if(!is_admin()) return false;
-        if(!isset($_GET['page'])) return false;
+        if(!isset($_GET['page'])) return false; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only screen check; it only decides whether a count query is worth running.
 
-        return $_GET['page'] === 'wc-settings';
+        return $_GET['page'] === 'wc-settings'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only screen check; nothing is changed and the value is compared, not used.
     }
 
     /**

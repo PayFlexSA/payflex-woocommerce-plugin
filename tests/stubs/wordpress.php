@@ -436,6 +436,39 @@ function wp_generate_password($length = 12, $special_chars = true, $extra_specia
 }
 
 /* -------------------------------------------------------------------------
+ * Nonces
+ * ---------------------------------------------------------------------- */
+
+/**
+ * Deterministic stand-in for the real nonce, so a test can hand a valid one to
+ * a screen that now verifies it.
+ */
+function wp_create_nonce($action = -1)
+{
+    return 'nonce-' . $action;
+}
+
+function wp_verify_nonce($nonce, $action = -1)
+{
+    return $nonce === wp_create_nonce($action) ? 1 : false;
+}
+
+function wp_nonce_field($action = -1, $name = '_wpnonce', $referer = true, $display = true)
+{
+    $field = '<input type="hidden" name="' . esc_attr($name) . '" value="' . esc_attr(wp_create_nonce($action)) . '" />';
+
+    if ($referer) {
+        $field .= '<input type="hidden" name="_wp_http_referer" value="" />';
+    }
+
+    if ($display) {
+        echo $field;
+    }
+
+    return $field;
+}
+
+/* -------------------------------------------------------------------------
  * Scripts, styles, blocks
  * ---------------------------------------------------------------------- */
 

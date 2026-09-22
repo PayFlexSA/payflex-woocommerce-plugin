@@ -138,7 +138,7 @@ add_action('plugins_loaded', function(){
 add_action('template_redirect', function()
 {
     // Check if the payment was cancelled
-    if (isset($_GET['status']) && $_GET['status'] == "cancelled" && isset($_GET['key']) && isset($_GET['token']))
+    if (isset($_GET['status']) && $_GET['status'] == "cancelled" && isset($_GET['key']) && isset($_GET['token'])) // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Shopper returning from Payflex's hosted checkout on a URL Payflex built, so no nonce is possible; the order key below is the secret, as in WooCommerce core's own cancel handler.
     {
 
         if(isset($gateway) && $gateway instanceof WC_Gateway_PartPay)
@@ -150,7 +150,7 @@ add_action('template_redirect', function()
             $gateway = new WC_Gateway_PartPay();
         }
         
-        $key = sanitize_text_field($_GET['key']);
+        $key = sanitize_text_field(wp_unslash($_GET['key'])); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Payflex cancel return URL; the key is resolved with wc_get_order_id_by_order_key() and the remote order status is re-checked before anything changes.
         $order_id = wc_get_order_id_by_order_key($key);
 
         if (function_exists("wc_get_order"))
@@ -188,11 +188,11 @@ add_action('template_redirect', function()
 
                 if (method_exists($order, "get_cancel_order_url_raw"))
                 {
-                    wp_redirect($order->get_cancel_order_url_raw());
+                    wp_safe_redirect($order->get_cancel_order_url_raw());
                 }
                 else
                 {
-                    wp_redirect($order->get_cancel_order_url());
+                    wp_safe_redirect($order->get_cancel_order_url());
                 }
                 exit;
             }
@@ -516,13 +516,13 @@ function payflex_product_exclusion_field()
     echo '</div>';
 }
 
-// WooCommerce verifies the nonce before firing this, so no extra check is needed
+// WooCommerce verifies the nonce in WC_Admin_Meta_Boxes::save_meta_boxes() before firing this, so no extra check is needed
 add_action('woocommerce_process_product_meta', 'payflex_save_product_exclusion_field');
 function payflex_save_product_exclusion_field($post_id)
 {
     if(get_payflex_option('enable_product_exclusions') !== 'yes') return;
 
-    update_post_meta($post_id, Payflex_Eligibility::PRODUCT_META, isset($_POST[Payflex_Eligibility::PRODUCT_META]) ? 'yes' : 'no');
+    update_post_meta($post_id, Payflex_Eligibility::PRODUCT_META, isset($_POST[Payflex_Eligibility::PRODUCT_META]) ? 'yes' : 'no'); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- WC_Admin_Meta_Boxes::save_meta_boxes() verifies woocommerce_meta_nonce before firing woocommerce_process_product_meta.
 }
 
 

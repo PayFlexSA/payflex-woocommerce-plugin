@@ -61,7 +61,7 @@ final class Payflex_Admin_Products
     public static function render_column_style()
     {
         if(!self::enabled()) return;
-        if(!isset($_GET['post_type']) OR $_GET['post_type'] !== 'product') return;
+        if(!isset($_GET['post_type']) OR $_GET['post_type'] !== 'product') return; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only list-table screen check that only decides whether to print a column width; nothing is changed.
 
         echo '<style>.wp-list-table .column-' . self::COLUMN . '{width:150px}</style>';
     }
@@ -196,9 +196,9 @@ final class Payflex_Admin_Products
      */
     private static function requested_filter()
     {
-        if(!isset($_GET[self::COLUMN])) return '';
+        if(!isset($_GET[self::COLUMN])) return ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only list-table filter, unnonced like WordPress core's own post list filters.
 
-        return sanitize_text_field(wp_unslash($_GET[self::COLUMN]));
+        return sanitize_text_field(wp_unslash($_GET[self::COLUMN])); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only list-table filter; the value only ever narrows the products query to 'yes' or 'no'.
     }
 
     /**
