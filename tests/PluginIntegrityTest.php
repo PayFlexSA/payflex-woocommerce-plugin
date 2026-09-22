@@ -230,22 +230,19 @@ final class PluginIntegrityTest extends PF_TestCase
      * -------------------------------------------------------------------- */
 
     /**
-     * KNOWN DEFECT — characterisation test, not an endorsement.
+     * The gateway logs through $this->log(), which is a WC_Logger writing to
+     * WooCommerce's own log store. A raw error_log() bypasses that: it writes to
+     * the site's PHP error log on every call, whatever the merchant's logging
+     * settings, and order identifiers end up somewhere nobody is looking after
+     * them. process_refund() carried three such leftovers until 2.7.1+.
      *
-     * process_refund() still contains three leftover debug error_log() calls
-     * ("Payflex: orderId2"/"orderId3"). They write to the site's PHP error log
-     * on every refund attempt, leak the Payflex order id there, and are the
-     * source of the stray lines in this suite's output.
-     *
-     * They should be removed, or routed through $this->log().
-     *
-     * When they are gone, change the expected count to 0.
+     * This guards against another one creeping back in.
      */
-    public function test_leftover_debug_error_log_calls_are_still_present(): void
+    public function test_no_raw_error_log_calls_ship_in_the_gateway(): void
     {
         $count = preg_match_all('/^\s*error_log\s*\(/m', PF_PluginMeta::gatewayFile());
 
-        $this->assertSame(3, $count, 'The number of raw error_log() calls in the gateway changed');
+        $this->assertSame(0, $count, 'Raw error_log() calls do not belong in the gateway - use $this->log()');
     }
 
     public function test_no_var_dump_print_r_to_output_or_die_calls_ship(): void

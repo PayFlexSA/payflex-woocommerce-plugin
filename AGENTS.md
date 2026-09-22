@@ -220,12 +220,12 @@ testable — use `captureRedirect()`.
 `new WC_Order($id)` and `wc_get_order($id)` see the same state. The plugin mixes
 both. Use `$order->pf_data()` to reach the backing store for assertions.
 
-### "Payflex: orderId2…" lines in the output
+### No raw `error_log()` in the gateway
 
-Those are not test failures. `process_refund()` contains three leftover debug
-`error_log()` calls, and PHPUnit surfaces anything written to the error log.
-`PluginIntegrityTest::test_leftover_debug_error_log_calls_are_still_present`
-tracks them; the noise disappears when they are removed from the gateway.
+`process_refund()` used to carry three leftover debug `error_log()` calls, whose
+output PHPUnit surfaced as stray "Payflex: orderId2…" lines mid-run. They are
+gone; `PluginIntegrityTest::test_no_raw_error_log_calls_ship_in_the_gateway`
+keeps them gone. Log through `$this->log()`, which is a `WC_Logger`.
 
 ### Limits of the approach
 
@@ -359,7 +359,7 @@ when fixed, prompting the test to be tightened. Roughly highest impact first.
 | 4 | **Workflow-status cache leaks between orders.** `set_payflex_workflow_status()` caches the value in an instance property that `get_payflex_workflow_status()` returns for *any* order id. The gateway is a singleton and the CRON sweep loops set-then-get, so after the first order every later order in the run reports the first one's status — which drives the "has this changed?" guard. Key the cache by order id, or drop it. | `get_/set_payflex_workflow_status()` | `OrderMetaTest::test_workflow_status_cache_leaks_between_orders_after_a_write` |
 | 5 | **Oldest `_partpay_*` fallback returns an array.** `get_post_meta()` is called without `$single = true`, so a string is expected but an array comes back and gets concatenated into a URL. Affects only pre-2.6 non-HPOS orders. The redundant call above the correct one should be deleted. | `get_payflex_order_id()`, `get_payflex_order_token()` | `OrderMetaTest::test_the_oldest_partpay_fallback_returns_an_array_not_a_string` |
 | ~~6~~ | **RESOLVED (2.7.1+).** Widget settings were neither `esc_attr()`d into the container data attributes nor encoded into the hosted script's query string, so a double quote broke out of its attribute. Both halves now fixed; the characterisation tests were inverted to assert the encoding. | `payflex_frontend_widget()` | `WidgetTest::test_widget_settings_are_escaped_in_the_container_data_attributes`, `::test_widget_settings_are_url_encoded_in_the_script_query_string` |
-| 7 | **Leftover debug `error_log()` calls.** Three `Payflex: orderId2`/`orderId3` writes on every refund attempt, leaking the Payflex order id to the site error log. Remove them, or route through `$this->log()`. Also flagged by Plugin Check as 5 warnings (`WordPress.PHP.DevelopmentFunctions`: 3 × `error_log_error_log`, 2 × `error_log_print_r`) — queued as its own cleanup pass, since the `print_r` sites need checking for what they leak before removal. | `process_refund()` | `PluginIntegrityTest::test_leftover_debug_error_log_calls_are_still_present` |
+| ~~7~~ | **RESOLVED (2.7.1+).** Three leftover `Payflex: orderId2`/`orderId3` `error_log()` writes fired on every refund attempt, leaking the Payflex order id to the site error log regardless of any logging setting; two logged an identical string. All three are removed. The two `print_r()` sites Plugin Check flagged alongside them went with the same pass — the `orderId` one wrapped a scalar and now uses the value directly, and the refund-response dump now goes through `wp_json_encode()`. The characterisation test was inverted to assert zero raw `error_log()` calls and renamed. | `process_refund()`, `process_payment()` | `PluginIntegrityTest::test_no_raw_error_log_calls_ship_in_the_gateway` |
 | 8 | **PHP requirement advertised inconsistently.** `readme.txt` says `Requires PHP: 7.4`; the support page flags anything below 8.1 as unsupported. A merchant on 7.4 can install and is then told their PHP is unsupported. Reconcile — probably by raising `readme.txt` to 8.1. | `readme.txt`, support page | `PluginIntegrityTest::test_the_php_requirement_is_advertised_inconsistently` |
 
 Two more observations without characterisation tests, because the behaviour they

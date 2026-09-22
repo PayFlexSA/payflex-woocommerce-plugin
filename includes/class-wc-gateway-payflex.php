@@ -1462,7 +1462,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
             );
         }
 
-        $this->log('Created Payflex OrderId: ' . print_r($order_body->orderId, true));
+        $this->log('Created Payflex OrderId: ' . $order_body->orderId);
 
         # Use WC_Order method to save meta
         // $order->update_meta_data('_partpay_order_token', $order_body->token);
@@ -1852,7 +1852,6 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
 
         $access_token = $this->get_payflex_authorization_code();
         $random_string = wp_generate_password(8, false, false);
-        error_log('Payflex: orderId2' . $payflex_order_id);
         $refund_args = [
             'headers' => [
                 'Content-Type'  => 'application/json',
@@ -1865,14 +1864,12 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
                 'merchantRefundReference' => 'Order #' . $order_id . '-' . $random_string
             ])
         ];
-        error_log('Payflex: orderId3' . $payflex_order_id);
         $refundOrderUrl = $this->orderurl . '/' . $payflex_order_id . '/refund';
 
         $refund_response = wp_remote_post($refundOrderUrl, $refund_args);
         $refund_body = json_decode(wp_remote_retrieve_body($refund_response));
 
-        $this->log('Refund body: ' . print_r($refund_body, true));
-        error_log('Payflex: orderId3' . $payflex_order_id);
+        $this->log('Refund body: ' . wp_json_encode($refund_body));
         $responsecode = isset($refund_response['response']['code']) ? intval($refund_response['response']['code']) : 0;
 
         if ($responsecode == 201 || $responsecode == 200) {
