@@ -31,51 +31,51 @@ trait WC_Gateway_Payflex_Form_Fields
             // General
             'section_general_start' => [
                 'type'  => 'section_start',
-                'title' => __('General', 'woo_payflex'),
+                'title' => __('General', 'payflex-payment-gateway'),
                 'icon'  => 'admin-settings',
             ],
             'enabled' => [
-                'title'   => __('Enable/Disable', 'woo_payflex'),
+                'title'   => __('Enable/Disable', 'payflex-payment-gateway'),
                 'type'    => 'checkbox',
-                'label'   => __('Enable Payflex', 'woo_payflex'),
+                'label'   => __('Enable Payflex', 'payflex-payment-gateway'),
                 'default' => 'yes',
             ],
             'widget_only_mode' => [
-                'title'       => __('Widget Only Mode', 'woo_payflex'),
+                'title'       => __('Widget Only Mode', 'payflex-payment-gateway'),
                 'type'        => 'checkbox',
-                'label'       => __('Enable Widget Only Mode', 'woo_payflex'),
+                'label'       => __('Enable Widget Only Mode', 'payflex-payment-gateway'),
                 'default'     => 'no',
-                'description' => __('Show the Payflex widget on product pages without offering Payflex as a payment method. API credentials are not needed. For stores that already have their own Payflex integration.', 'woo_payflex'),
+                'description' => __('Show the Payflex widget on product pages without offering Payflex as a payment method. API credentials are not needed. For stores that already have their own Payflex integration.', 'payflex-payment-gateway'),
             ],
             'title' => [
-                'title'       => __('Title', 'woo_payflex'),
+                'title'       => __('Title', 'payflex-payment-gateway'),
                 'type'        => 'text',
-                'description' => __('Payment method title shown to the customer during checkout.', 'woo_payflex'),
-                'default'     => __('Payflex', 'woo_payflex'),
+                'description' => __('Payment method title shown to the customer during checkout.', 'payflex-payment-gateway'),
+                'default'     => __('Payflex', 'payflex-payment-gateway'),
             ],
             'section_general_end' => ['type' => 'section_end'],
 
             // API Credentials
             'section_credentials_start' => [
                 'type'  => 'section_start',
-                'title' => __('API Credentials', 'woo_payflex'),
+                'title' => __('API Credentials', 'payflex-payment-gateway'),
                 'icon'  => 'lock',
                 'class' => 'pf-section--credentials',
             ],
             'testmode' => [
-                'title'       => __('Environment', 'woo_payflex'),
+                'title'       => __('Environment', 'payflex-payment-gateway'),
                 'type'        => 'select',
                 'options'     => $env_values,
-                'description' => __('Select Sandbox or Production.', 'woo_payflex'),
+                'description' => __('Select Sandbox or Production.', 'payflex-payment-gateway'),
             ],
             'client_id' => [
-                'title'       => __('Client ID', 'woo_payflex'),
+                'title'       => __('Client ID', 'payflex-payment-gateway'),
                 'type'        => 'text',
                 'description' => '<span class="pfConnectionStatus ' . $pf_connection_status_class . '">' . esc_html($pf_connection_status) . '</span>',
                 'default'     => '',
             ],
             'client_secret' => [
-                'title'   => __('Client Secret', 'woo_payflex'),
+                'title'   => __('Client Secret', 'payflex-payment-gateway'),
                 'type'    => 'password_toggle',
                 'default' => '',
             ],
@@ -84,48 +84,48 @@ trait WC_Gateway_Payflex_Form_Fields
             // Widget
             'section_widget_start' => [
                 'type'  => 'section_start',
-                'title' => __('Widget', 'woo_payflex'),
+                'title' => __('Widget', 'payflex-payment-gateway'),
                 'icon'  => 'visibility',
                 'class' => 'pf-section--widget',
             ],
             'widget_style' => [
-                'title'   => __('Style', 'woo_payflex'),
+                'title'   => __('Style', 'payflex-payment-gateway'),
                 'type'    => 'select',
                 'options' => ['purple' => 'Purple', 'navy' => 'Navy'],
                 'default' => 'purple',
             ],
             'widget_theme' => [
-                'title'   => __('Theme', 'woo_payflex'),
+                'title'   => __('Theme', 'payflex-payment-gateway'),
                 'type'    => 'select',
                 'options' => ['' => 'Default', 'dark' => 'Dark'],
                 'default' => '',
             ],
             'pay_type' => [
-                'title'   => __('Pay Type', 'woo_payflex'),
+                'title'   => __('Pay Type', 'payflex-payment-gateway'),
                 'type'    => 'select',
                 'options' => ['4' => 'Pay in 4', '3' => 'Pay in 3'],
                 'default' => '4',
             ],
             'widget_preview' => [
                 'type'  => 'widget_preview',
-                'title' => __('Preview', 'woo_payflex'),
+                'title' => __('Preview', 'payflex-payment-gateway'),
             ],
             'enable_product_widget' => [
-                'title'   => __('Product Page', 'woo_payflex'),
+                'title'   => __('Product Page', 'payflex-payment-gateway'),
                 'type'    => 'checkbox',
-                'label'   => __('Show widget on product pages', 'woo_payflex'),
+                'label'   => __('Show widget on product pages', 'payflex-payment-gateway'),
                 'default' => 'yes',
             ],
             'enable_checkout_widget' => [
-                'title'   => __('Checkout Page', 'woo_payflex'),
+                'title'   => __('Checkout Page', 'payflex-payment-gateway'),
                 'type'    => 'checkbox',
-                'label'   => __('Show widget on the checkout page', 'woo_payflex'),
+                'label'   => __('Show widget on the checkout page', 'payflex-payment-gateway'),
                 'default' => 'yes',
             ],
             // 'widget_custom_css' => [
-            //     'title'       => __('Custom CSS', 'woo_payflex'),
+            //     'title'       => __('Custom CSS', 'payflex-payment-gateway'),
             //     'type'        => 'textarea',
-            //     'description' => __('CSS injected alongside the widget on product and checkout pages.', 'woo_payflex'),
+            //     'description' => __('CSS injected alongside the widget on product and checkout pages.', 'payflex-payment-gateway'),
             //     'default'     => '',
             //     'placeholder' => '.payflexCalculatorWidgetContainer { }',
             //     'css'         => 'font-family: Consolas, monospace; font-size: 12px; height: 120px; resize: vertical;',
@@ -135,53 +135,53 @@ trait WC_Gateway_Payflex_Form_Fields
             // Eligibility
             'section_eligibility_start' => [
                 'type'  => 'section_start',
-                'title' => __('Eligibility', 'woo_payflex'),
+                'title' => __('Eligibility', 'payflex-payment-gateway'),
                 'icon'  => 'filter',
                 'class' => 'pf-section--eligibility',
             ],
             'exclude_subscriptions' => [
-                'title'       => __('Subscriptions', 'woo_payflex'),
+                'title'       => __('Subscriptions', 'payflex-payment-gateway'),
                 'type'        => 'checkbox',
-                'label'       => __('Block Payflex on subscription products', 'woo_payflex'),
+                'label'       => __('Block Payflex on subscription products', 'payflex-payment-gateway'),
                 'default'     => 'no',
-                'description' => __('Payflex cannot be used for recurring payments.', 'woo_payflex'),
+                'description' => __('Payflex cannot be used for recurring payments.', 'payflex-payment-gateway'),
             ],
             'enable_product_exclusions' => [
-                'title'       => __('Per Product', 'woo_payflex'),
+                'title'       => __('Per Product', 'payflex-payment-gateway'),
                 'type'        => 'checkbox',
-                'label'       => __('Allow individual products to be excluded', 'woo_payflex'),
+                'label'       => __('Allow individual products to be excluded', 'payflex-payment-gateway'),
                 'default'     => 'no',
-                'description' => __('Adds a Payflex checkbox to the product data panel.', 'woo_payflex') . $this->product_exclusion_count(),
+                'description' => __('Adds a Payflex checkbox to the product data panel.', 'payflex-payment-gateway') . $this->product_exclusion_count(),
             ],
             'excluded_product_cats' => [
-                'title'       => __('Excluded Categories', 'woo_payflex'),
+                'title'       => __('Excluded Categories', 'payflex-payment-gateway'),
                 'type'        => 'multiselect',
                 'class'       => 'wc-enhanced-select',
                 'options'     => $category_options,
                 'default'     => [],
-                'description' => __('Payflex is hidden when the cart contains a product from these categories.', 'woo_payflex') . $this->category_exclusion_count(),
+                'description' => __('Payflex is hidden when the cart contains a product from these categories.', 'payflex-payment-gateway') . $this->category_exclusion_count(),
             ],
             'section_eligibility_end' => ['type' => 'section_end'],
 
             // Advanced
             'section_advanced_start' => [
                 'type'  => 'section_start',
-                'title' => __('Advanced', 'woo_payflex'),
+                'title' => __('Advanced', 'payflex-payment-gateway'),
                 'icon'  => 'admin-tools',
             ],
             'admin_only_enabled' => [
-                'title'       => __('Admin Only Mode', 'woo_payflex'),
+                'title'       => __('Admin Only Mode', 'payflex-payment-gateway'),
                 'type'        => 'checkbox',
-                'label'       => __('Enable Admin Only Mode', 'woo_payflex'),
+                'label'       => __('Enable Admin Only Mode', 'payflex-payment-gateway'),
                 'default'     => 'no',
-                'description' => __('Only enable Payflex for logged-in admins. "Enable Payflex" must also be checked.', 'woo_payflex'),
+                'description' => __('Only enable Payflex for logged-in admins. "Enable Payflex" must also be checked.', 'payflex-payment-gateway'),
             ],
             'payflex_debug' => [
-                'title'       => __('Debug Output', 'woo_payflex'),
+                'title'       => __('Debug Output', 'payflex-payment-gateway'),
                 'type'        => 'checkbox',
-                'label'       => __('Enable Debug Output', 'woo_payflex'),
+                'label'       => __('Enable Debug Output', 'payflex-payment-gateway'),
                 'default'     => 'no',
-                'description' => __('Enable debug messages. Only enable during testing.', 'woo_payflex'),
+                'description' => __('Enable debug messages. Only enable during testing.', 'payflex-payment-gateway'),
             ],
             'section_advanced_end' => ['type' => 'section_end'],
         ];
@@ -237,7 +237,7 @@ trait WC_Gateway_Payflex_Form_Fields
      */
     public function generate_widget_preview_html($key, $data)
     {
-        $title = isset($data['title']) ? esc_html($data['title']) : esc_html__('Preview', 'woo_payflex');
+        $title = isset($data['title']) ? esc_html($data['title']) : esc_html__('Preview', 'payflex-payment-gateway');
         return '<tr class="pf-widget-preview-row"><th>' . $title . '</th><td><div class="pfwidgetpreview"></div></td></tr>';
     }
 
@@ -269,10 +269,10 @@ trait WC_Gateway_Payflex_Form_Fields
 
         $count = Payflex_Admin_Products::excluded_product_count();
 
-        if(!$count) return $this->exclusion_count_badge(__('No products are currently excluded', 'woo_payflex'), '', true);
+        if(!$count) return $this->exclusion_count_badge(__('No products are currently excluded', 'payflex-payment-gateway'), '', true);
 
         $label = sprintf(
-            _n('%d product currently excluded', '%d products currently excluded', $count, 'woo_payflex'),
+            _n('%d product currently excluded', '%d products currently excluded', $count, 'payflex-payment-gateway'),
             $count
         );
 
@@ -294,10 +294,10 @@ trait WC_Gateway_Payflex_Form_Fields
 
         $count = Payflex_Admin_Products::category_excluded_product_count();
 
-        if(!$count) return $this->exclusion_count_badge(__('No products currently sit in these categories', 'woo_payflex'), '', true);
+        if(!$count) return $this->exclusion_count_badge(__('No products currently sit in these categories', 'payflex-payment-gateway'), '', true);
 
         $label = sprintf(
-            _n('%d product currently excluded', '%d products currently excluded', $count, 'woo_payflex'),
+            _n('%d product currently excluded', '%d products currently excluded', $count, 'payflex-payment-gateway'),
             $count
         );
 
@@ -351,7 +351,7 @@ trait WC_Gateway_Payflex_Form_Fields
                         style="<?php echo esc_attr($data['css']); ?>"
                         placeholder="<?php echo esc_attr($data['placeholder']); ?>"
                     />
-                    <button type="button" class="pf-toggle-secret" onclick="pfToggleSecret(this)" aria-label="<?php esc_attr_e('Toggle visibility', 'woo_payflex'); ?>">
+                    <button type="button" class="pf-toggle-secret" onclick="pfToggleSecret(this)" aria-label="<?php esc_attr_e('Toggle visibility', 'payflex-payment-gateway'); ?>">
                         <span class="dashicons dashicons-visibility"></span>
                     </button>
                 </div>

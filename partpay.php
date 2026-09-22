@@ -7,6 +7,7 @@
  * Author URI: https://payflex.co.za/
  * WC requires at least: 6.0
  * WC tested up to: 9.9.4
+ * Text Domain: payflex-payment-gateway
 */
 
 
@@ -181,7 +182,7 @@ add_action('template_redirect', function()
             if ($body->orderStatus != "Approved" OR $gateway->get_payflex_workflow_status($order_id) != 'abandoned')
             {
                 $gateway->log('Order ' . $order_id . ' payment cancelled by the customer while on the Payflex checkout pages.');
-                $order->add_order_note(__('Payment cancelled by the customer while on the Payflex checkout page.', 'woo_payflex'));
+                $order->add_order_note(__('Payment cancelled by the customer while on the Payflex checkout page.', 'payflex-payment-gateway'));
 
                 $gateway->set_payflex_workflow_status($order_id, 'abandoned');
 
@@ -263,12 +264,12 @@ function payflex_cart_eligibility_schema()
 {
     return [
         'eligible' => [
-            'description' => __('Whether the cart can be paid for with Payflex.', 'woo_payflex'),
+            'description' => __('Whether the cart can be paid for with Payflex.', 'payflex-payment-gateway'),
             'type'        => 'boolean',
             'readonly'    => true,
         ],
         'message' => [
-            'description' => __('Why Payflex is unavailable for this cart.', 'woo_payflex'),
+            'description' => __('Why Payflex is unavailable for this cart.', 'payflex-payment-gateway'),
             'type'        => 'string',
             'readonly'    => true,
         ],
@@ -382,7 +383,7 @@ add_filter('cron_schedules', function ($schedules)
 {
     $schedules['twominutes'] = array(
         'interval' => 120, // seconds
-        'display'  => __('Every 2 minutes', 'woo_payflex')
+        'display'  => __('Every 2 minutes', 'payflex-payment-gateway')
     );
     return $schedules;
 });
@@ -508,8 +509,8 @@ function payflex_product_exclusion_field()
     woocommerce_wp_checkbox([
         'id'          => Payflex_Eligibility::PRODUCT_META,
         'value'       => get_post_meta(get_the_ID(), Payflex_Eligibility::PRODUCT_META, true),
-        'label'       => __('Exclude from Payflex', 'woo_payflex'),
-        'description' => __('Hide Payflex as a payment option when this product is in the cart.', 'woo_payflex'),
+        'label'       => __('Exclude from Payflex', 'payflex-payment-gateway'),
+        'description' => __('Hide Payflex as a payment option when this product is in the cart.', 'payflex-payment-gateway'),
     ]);
 
     echo '</div>';

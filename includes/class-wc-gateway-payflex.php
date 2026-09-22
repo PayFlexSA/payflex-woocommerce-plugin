@@ -97,8 +97,8 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
         $this->base_plugin_dir = (defined('PAYFLEX_PLUGIN_DIR')) ? PAYFLEX_PLUGIN_DIR : plugin_dir_path(__FILE__.'/../');
 
         $this->id = 'payflex';
-        $this->method_title = __('Payflex', 'woo_payflex');
-        $this->method_description = __('Use Payflex as a credit card processor for WooCommerce.', 'woo_payflex');
+        $this->method_title = __('Payflex', 'payflex-payment-gateway');
+        $this->method_description = __('Use Payflex as a credit card processor for WooCommerce.', 'payflex-payment-gateway');
         $this->icon = $this->plugin_url('Checkout.png');
 
         $this->supports = array(
@@ -146,7 +146,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
         {
             $this->title = $this->settings['title'];
         }
-        $this->description = __('Pay for your order in either 4 interest-free payments over 6 weeks OR 3 interest-free payments over 3 paydays.', 'woo_payflex');
+        $this->description = __('Pay for your order in either 4 interest-free payments over 6 weeks OR 3 interest-free payments over 3 paydays.', 'payflex-payment-gateway');
 
         self::$log_enabled = true;
 
@@ -292,7 +292,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
     public function admin_options()
     {
         ?>
-        <h3><?php esc_html_e('Payflex Gateway', 'woo_payflex'); ?></h3>
+        <h3><?php esc_html_e('Payflex Gateway', 'payflex-payment-gateway'); ?></h3>
         <div class="pf-settings-wrap">
             <?php $this->generate_settings_html(); ?>
         </div>
@@ -354,7 +354,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
     public function admin_info_block()
     {
     ?>
-        <p><a href="<?php echo admin_url('admin.php?page=payflex-support'); ?>"><?php esc_html_e('Support Information', 'woo_payflex'); ?></a></p>
+        <p><a href="<?php echo admin_url('admin.php?page=payflex-support'); ?>"><?php esc_html_e('Support Information', 'payflex-payment-gateway'); ?></a></p>
     <?php
     }
     
@@ -1258,15 +1258,15 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
             $admin_support_url = admin_url('admin.php?page=payflex-support&payflex_order_id=' . $existing_order_id.'&redirect_url='.$current_order_url);
             $transaction_id_html_link =  '<a href="'.$admin_support_url.'">'.$existing_order_id.'</a>';
 
-            $order->add_order_note(__('Payflex: User checking out again using Payflex, but the order is already in progress on the gateway transaction ID: ' . $transaction_id_html_link, 'woo_payflex'));
+            $order->add_order_note(__('Payflex: User checking out again using Payflex, but the order is already in progress on the gateway transaction ID: ' . $transaction_id_html_link, 'payflex-payment-gateway'));
 
             // Check payflex order transaction ID on Payflex
             $payflex_order = $this->payflex_remote_get_order($existing_order_id);
 
             if ($payflex_order === false)
             {
-                $order->add_order_note(__('Payflex: Unable to verify the status of existing transaction ' . $existing_order_id . ' - API did not return a valid response.', 'woo_payflex'));
-                wc_add_notice(__('Unable to verify your existing Payflex transaction. Please try again later.', 'woo_payflex'), 'error');
+                $order->add_order_note(__('Payflex: Unable to verify the status of existing transaction ' . $existing_order_id . ' - API did not return a valid response.', 'payflex-payment-gateway'));
+                wc_add_notice(__('Unable to verify your existing Payflex transaction. Please try again later.', 'payflex-payment-gateway'), 'error');
                 return;
             }
 
@@ -1274,7 +1274,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
             if($payflex_order->orderStatus == 'Declined' OR $payflex_order->orderStatus == 'Abandoned' OR $payflex_order->orderStatus == 'Cancelled')
             {
                 // If the order status is declined or abandoned, we can create a new order
-                $order->add_order_note(__('Payflex:  ' .$transaction_id_html_link . ' is was '.$payflex_order->orderStatus.'. Transaction ID resetting to allow a new payment for current order.', 'woo_payflex'));
+                $order->add_order_note(__('Payflex:  ' .$transaction_id_html_link . ' is was '.$payflex_order->orderStatus.'. Transaction ID resetting to allow a new payment for current order.', 'payflex-payment-gateway'));
 
                 $order->delete_meta_data('_payflex_order_id');
                 $order->delete_meta_data('_payflex_order_token');
@@ -1283,9 +1283,9 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
             if($payflex_order->orderStatus == 'Created')
             {
                 // If the order status is created, we should not create a new order
-                $order->add_order_note(__('Payflex: Order is currently pending on Payflex. Until the Payflex order is declined or cancelled, the user cannot checkout again for the current order', 'woo_payflex'));
+                $order->add_order_note(__('Payflex: Order is currently pending on Payflex. Until the Payflex order is declined or cancelled, the user cannot checkout again for the current order', 'payflex-payment-gateway'));
                 // Show a notice to the user
-                wc_add_notice(__('This order is currently awaiting approval from Payflex. Please wait for the order to be approved or cancelled before trying again.', 'woo_payflex'), 'error');
+                wc_add_notice(__('This order is currently awaiting approval from Payflex. Please wait for the order to be approved or cancelled before trying again.', 'payflex-payment-gateway'), 'error');
 
                 return;
             }
@@ -1293,11 +1293,11 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
             if($payflex_order->orderStatus == 'Approved')
             {
                 // If the order status is approved, we should not create a new order
-                $order->add_order_note(__('Payflex: Order was already approved on Payflex. Payment cannot be processed again', 'woo_payflex'));
+                $order->add_order_note(__('Payflex: Order was already approved on Payflex. Payment cannot be processed again', 'payflex-payment-gateway'));
                 $this->set_payflex_workflow_status($order_id, 'approved');
 
                 // Show a notice to the user
-                wc_add_notice(__('This order has already been approved by Payflex, if your order still appears to be pending, please wait for up to 40 minutes for the order to be processed.', 'woo_payflex'), 'error');
+                wc_add_notice(__('This order has already been approved by Payflex, if your order still appears to be pending, please wait for up to 40 minutes for the order to be processed.', 'payflex-payment-gateway'), 'error');
 
                 return;
             }
@@ -1305,10 +1305,10 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
             if(!in_array($payflex_order->orderStatus, ['Declined', 'Abandoned','Cancelled','Created','Approved']))
             {
                 // If the order status is not in the list of statuses that we want to check, we can create a new order
-                $order->add_order_note(__('Payflex: Order status is ' . $payflex_order->orderStatus . '. This isn\'t a known status, so we will not allow the user to checkout again using Payflex for the current order', 'woo_payflex'));
+                $order->add_order_note(__('Payflex: Order status is ' . $payflex_order->orderStatus . '. This isn\'t a known status, so we will not allow the user to checkout again using Payflex for the current order', 'payflex-payment-gateway'));
                 
                 // Show a notice to the user
-                wc_add_notice(__('This order is currently awaiting approval from Payflex. Please wait for the order to be approved or cancelled before trying again.', 'woo_payflex'), 'error');
+                wc_add_notice(__('This order is currently awaiting approval from Payflex. Please wait for the order to be approved or cancelled before trying again.', 'payflex-payment-gateway'), 'error');
                 return;
             }
 
@@ -1340,11 +1340,11 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
         {
             if ($this->debug_mode)
             {
-                wc_add_notice(__('There was an issue connecting to Payflex servers. Please try again later.', 'woo_payflex') , 'error');
+                wc_add_notice(__('There was an issue connecting to Payflex servers. Please try again later.', 'payflex-payment-gateway') , 'error');
             }
             else
             {
-                wc_add_notice(__('Sorry, there was a problem preparing your payment. Please try again later.', 'woo_payflex') , 'error');
+                wc_add_notice(__('Sorry, there was a problem preparing your payment. Please try again later.', 'payflex-payment-gateway') , 'error');
             }
 
             $this->log('User attempted Payflex payment and an error occured - ' . $order_response->get_error_message());
@@ -1360,11 +1360,11 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
         {
             if ($this->debug_mode)
             {
-                wc_add_notice(__('Payflex API return is not a valid object, API might be under maintenance or there was an undefined issue with the sent data', 'woo_payflex') , 'error');
+                wc_add_notice(__('Payflex API return is not a valid object, API might be under maintenance or there was an undefined issue with the sent data', 'payflex-payment-gateway') , 'error');
             }
             else
             {
-                wc_add_notice(__('Sorry, there was a problem preparing your payment.', 'woo_payflex') , 'error');
+                wc_add_notice(__('Sorry, there was a problem preparing your payment.', 'payflex-payment-gateway') , 'error');
             }
             
             $this->log('User attempted Payflex payment and an error occured - Payflex API return is not a valid object, API might be under maintenance or there was an undefined issue with the sent data', 'error');
@@ -1382,7 +1382,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
                 if(isset($order_body->message))
                 {
                     // This currently doesn't trigger correctly due to a Woocommerce bug https://github.com/woocommerce/woocommerce/issues/51272
-                    wc_add_notice(__('Payflex payment error. Successfully connected to Payflex, but did not get back expected data.<br/> API Responded with: '.$order_body->message, 'woo_payflex') , 'error');
+                    wc_add_notice(__('Payflex payment error. Successfully connected to Payflex, but did not get back expected data.<br/> API Responded with: '.$order_body->message, 'payflex-payment-gateway') , 'error');
 
                     $this->log('User attempted Payflex payment and an error occured - Successfully connected to Payflex gateway, but did not get back expected data. API Responded with: '.$order_body->message, 'error');
 
@@ -1395,7 +1395,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
                 if(isset($order_body->response) AND isset($order_body->response->message))
                 {
 
-                    wc_add_notice(__('Payflex payment error. Successfully connected to Payflex, but did not get back expected data.<br/> API Responded with: '.$order_body->message, 'woo_payflex') , 'error');
+                    wc_add_notice(__('Payflex payment error. Successfully connected to Payflex, but did not get back expected data.<br/> API Responded with: '.$order_body->message, 'payflex-payment-gateway') , 'error');
 
                     $this->log('User attempted Payflex payment and an error occured - Successfully connected to Payflex gateway, but did not get back expected data. API Responded with: '.$order_body->message, 'error');
 
@@ -1405,7 +1405,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
                     );
                 }
 
-                wc_add_notice(__('Payflex API return response is not in expected format, Payflex is possibly under maintenance', 'woo_payflex') , 'error');
+                wc_add_notice(__('Payflex API return response is not in expected format, Payflex is possibly under maintenance', 'payflex-payment-gateway') , 'error');
             }
             else
             {
@@ -1415,7 +1415,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
                     $message = $order_body->message;
                 }
 
-                wc_add_notice(__('Sorry, there was a problem processing your payment using Payflex.', 'woo_payflex') , 'error');
+                wc_add_notice(__('Sorry, there was a problem processing your payment using Payflex.', 'payflex-payment-gateway') , 'error');
 
                 $this->log('User attempted Payflex payment and an error occured - Successfully connected to Payflex gateway, but something went wrong. API Responded with: '.$message, 'error');
 
@@ -1432,13 +1432,13 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
             // Couldn't generate token
             if ($this->debug_mode)
             {
-                wc_add_notice(__('Payflex API Token appears to be invalid', 'woo_payflex') , 'error');
+                wc_add_notice(__('Payflex API Token appears to be invalid', 'payflex-payment-gateway') , 'error');
             }
             else
             {
-                wc_add_notice(__('Sorry, there was a problem preparing your payment.', 'woo_payflex') , 'error');
+                wc_add_notice(__('Sorry, there was a problem preparing your payment.', 'payflex-payment-gateway') , 'error');
             }
-            $order->add_order_note(__('Unable to generate the order token. Payment couldn\'t proceed.', 'woo_payflex'));
+            $order->add_order_note(__('Unable to generate the order token. Payment couldn\'t proceed.', 'payflex-payment-gateway'));
             
             return array(
                 'result' => 'failure',
@@ -1470,11 +1470,11 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
         # Add order note
         if($this->get_payflex_workflow_status($order_id) !== 'initiated')
         {
-            $order_note = __('Payflex: User attempted Payflex order.<br>Transaction ID: ' . $order_id_url, 'woo_payflex');
+            $order_note = __('Payflex: User attempted Payflex order.<br>Transaction ID: ' . $order_id_url, 'payflex-payment-gateway');
             
-            if(payflex_environment() == 'develop')    $order_note = __('Payflex: User attempted Payflex order in Sandbox Mode.<br>Transaction ID: ' . $order_id_url, 'woo_payflex');
-            if(payflex_environment() == 'production') $order_note = __('Payflex: User attempted Payflex order.<br>Transaction ID: ' . $order_id_url, 'woo_payflex');
-            if(payflex_environment() == 'unknown')    $order_note = __('Payflex: User attempted Payflex order.<br>Transaction ID: ' . $order_id_url, 'woo_payflex');
+            if(payflex_environment() == 'develop')    $order_note = __('Payflex: User attempted Payflex order in Sandbox Mode.<br>Transaction ID: ' . $order_id_url, 'payflex-payment-gateway');
+            if(payflex_environment() == 'production') $order_note = __('Payflex: User attempted Payflex order.<br>Transaction ID: ' . $order_id_url, 'payflex-payment-gateway');
+            if(payflex_environment() == 'unknown')    $order_note = __('Payflex: User attempted Payflex order.<br>Transaction ID: ' . $order_id_url, 'payflex-payment-gateway');
 
             $order->add_order_note($order_note);
         }
@@ -1612,7 +1612,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
         
         if ($remote_order_status === 'Approved' AND !$order->has_status(['processing', 'completed']))
         {
-            $order_note = __('Payflex: Payment approved.<br>Transaction ID: <a href="#" >' . $order_id_url, 'woo_payflex');
+            $order_note = __('Payflex: Payment approved.<br>Transaction ID: <a href="#" >' . $order_id_url, 'payflex-payment-gateway');
 
             if($this->get_payflex_workflow_status($order_id) !== 'completed' )
             {
@@ -1620,7 +1620,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
                 $order->payment_complete($payflex_order_id);
             }
             else{
-                $order->add_order_note(__('Payflex: Payment already completed, user returned more than once. Transaction ID: ' . $order_id_url, 'woo_payflex'));
+                $order->add_order_note(__('Payflex: Payment already completed, user returned more than once. Transaction ID: ' . $order_id_url, 'payflex-payment-gateway'));
             }
 
             $this->set_payflex_workflow_status($order_id, 'completed');
@@ -1638,7 +1638,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
 
         if ($remote_order_status === 'Declined' AND !$order->has_status('failed'))
         {
-            $order_note = __('Payflex: Payment declined. Transaction ID: ' . $order_id_url, 'woo_payflex');
+            $order_note = __('Payflex: Payment declined. Transaction ID: ' . $order_id_url, 'payflex-payment-gateway');
 
             if($this->get_payflex_workflow_status($order_id) !== 'failed')
                 $order->add_order_note($order_note);
@@ -1653,7 +1653,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
         
         if ($remote_order_status === 'Abandoned' AND !$order->has_status('failed'))
         {
-            $order_note = __('Payflex: Payment abandoned. Transaction ID: ' . $order_id_url . ' ', 'woo_payflex');
+            $order_note = __('Payflex: Payment abandoned. Transaction ID: ' . $order_id_url . ' ', 'payflex-payment-gateway');
 
             if($this->get_payflex_workflow_status($order_id) !== 'abandoned')
                 $order->add_order_note($order_note);
@@ -1714,7 +1714,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
 
             $this->log('Remote status check for order ' . $order_id . ' returned ' . $remote_order_status);
 
-            $order_note = sprintf(__('Remote status check for order ' . $order_id . ' returned ' . $remote_order_status, 'woo_payflex'));
+            $order_note = sprintf(__('Remote status check for order ' . $order_id . ' returned ' . $remote_order_status, 'payflex-payment-gateway'));
             $order->add_order_note($order_note);
             wp_redirect($this->get_return_url($order)); exit;
         }
@@ -1821,7 +1821,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
 
         if (empty($payflex_order_id))
         {
-            $order->add_order_note(sprintf(__('There was an error submitting the refund to Payflex.', 'woo_payflex')));
+            $order->add_order_note(sprintf(__('There was an error submitting the refund to Payflex.', 'payflex-payment-gateway')));
             return false;
         }
 
@@ -1851,18 +1851,18 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
         $responsecode = isset($refund_response['response']['code']) ? intval($refund_response['response']['code']) : 0;
 
         if ($responsecode == 201 || $responsecode == 200) {
-            $order->add_order_note(sprintf(__('Refund of $%s successfully sent to PayFlex.', 'woo_payflex') , $amount));
+            $order->add_order_note(sprintf(__('Refund of $%s successfully sent to PayFlex.', 'payflex-payment-gateway') , $amount));
             return true;
         } else if($responsecode === 400 && $refund_body->errorCode==='MRM007') {
             $error_message = $refund_body->message;
-            $order->add_order_note(sprintf(__($error_message), 'woo_payflex'));
+            $order->add_order_note(__($error_message, 'payflex-payment-gateway'));
             $error = new WP_Error( 'woocommerce_api_create_order_refund_api_failed', $error_message);    
             return $error;
         } else {
             if ($responsecode == 404) {
-                $order->add_order_note(sprintf(__('Order not found on Payflex.', 'woo_payflex')));
+                $order->add_order_note(sprintf(__('Order not found on Payflex.', 'payflex-payment-gateway')));
             } else {
-                $order->add_order_note(sprintf(__('There was an error submitting the refund to Payflex.', 'woo_payflex')));
+                $order->add_order_note(sprintf(__('There was an error submitting the refund to Payflex.', 'payflex-payment-gateway')));
             }
             return false;
         }
@@ -1985,7 +1985,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
 
             if ($response_code != 200)
             {
-                // $order->add_order_note(sprintf(__('Tried to check payment status with Payflex. Unable to access API. Repsonse code is %s Payflex Order ID: %s','woo_payflex'),$response_code,$payflex_order_id));
+                // $order->add_order_note(sprintf(__('Tried to check payment status with Payflex. Unable to access API. Repsonse code is %s Payflex Order ID: %s','payflex-payment-gateway'),$response_code,$payflex_order_id));
                 continue;
             }
 
@@ -1995,7 +1995,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
             $admin_support_url = admin_url('admin.php?page=payflex-support&payflex_order_id=' . $payflex_order_id.'&redirect_url='.$current_order_url);
             $order_id_url = '<a href="'.$admin_support_url.'" >' . $payflex_order_id . '</a> ';
 
-            $order_note = __('Payflex: Payment processed via CRON.<br>Transaction ID: ' . $order_id_url, 'woo_payflex');
+            $order_note = __('Payflex: Payment processed via CRON.<br>Transaction ID: ' . $order_id_url, 'payflex-payment-gateway');
 
             # Get workflow status
             $workflow_updated = FALSE;
@@ -2009,7 +2009,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
 
             if ($body->orderStatus == "Approved")
             {
-                $order_note = __('Payflex: Payment approved via CRON.<br>Transaction ID: ' . $order_id_url, 'woo_payflex');
+                $order_note = __('Payflex: Payment approved via CRON.<br>Transaction ID: ' . $order_id_url, 'payflex-payment-gateway');
                 if($workflow_status !== 'completed') $workflow_updated = TRUE;
 
                 if($workflow_updated)
@@ -2027,7 +2027,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
             {
                 if($workflow_status !== $body->orderStatus.'_cron_checked') $workflow_updated = TRUE;
 
-                $order_note = sprintf(__('Payflex: Checked payment status via CRON. Still pending approval.', 'woo_payflex') , $payflex_order_id);
+                $order_note = sprintf(__('Payflex: Checked payment status via CRON. Still pending approval.', 'payflex-payment-gateway') , $payflex_order_id);
                 if($workflow_updated) $order->add_order_note($order_note);
 
                 $this->set_payflex_workflow_status($order_id, $body->orderStatus.'_cron_checked');
@@ -2039,7 +2039,7 @@ class WC_Gateway_PartPay extends WC_Payment_Gateway
 
                 if($workflow_status !== $body->orderStatus.'_cron_checked') $workflow_updated = TRUE;
 
-                $order_note = __('Payflex: Payment checked via CRON. Order '.$body->orderStatus.'.<br>Transaction ID: ' . $order_id_url, 'woo_payflex');
+                $order_note = __('Payflex: Payment checked via CRON. Order '.$body->orderStatus.'.<br>Transaction ID: ' . $order_id_url, 'payflex-payment-gateway');
 
                 # If the workflow updated, we will update the order
                 if($workflow_updated)

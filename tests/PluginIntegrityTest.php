@@ -281,7 +281,7 @@ final class PluginIntegrityTest extends PF_TestCase
     /**
      * The text domain is used consistently, so translations actually resolve.
      */
-    public function test_translation_calls_use_the_woo_payflex_text_domain(): void
+    public function test_translation_calls_use_the_plugin_text_domain(): void
     {
         foreach (PF_PluginMeta::shippedPhpFiles() as $file) {
             $contents = file_get_contents($file);
@@ -290,7 +290,7 @@ final class PluginIntegrityTest extends PF_TestCase
             preg_match_all("/__\(\s*'[^']*'\s*,\s*'([a-z0-9_-]+)'\s*\)/", $contents, $matches);
 
             foreach (array_unique($matches[1]) as $domain) {
-                $this->assertSame('woo_payflex', $domain, "$relative uses text domain '$domain'");
+                $this->assertSame('payflex-payment-gateway', $domain, "$relative uses text domain '$domain'");
             }
         }
     }

@@ -284,7 +284,7 @@ final class Payflex_Eligibility
         if(!empty($items))
         {
             return sprintf(
-                __('Payflex is not available with %s. Remove it to pay with Payflex.', 'woo_payflex'),
+                __('Payflex is not available with %s. Remove it to pay with Payflex.', 'payflex-payment-gateway'),
                 implode(', ', array_column($items, 'name'))
             );
         }
@@ -293,15 +293,15 @@ final class Payflex_Eligibility
 
         if(in_array(self::REASON_BELOW_MIN, $reasons, true))
         {
-            return sprintf(__('Payflex is available on orders from %s.', 'woo_payflex'), self::plain_price($limits['minimum']));
+            return sprintf(__('Payflex is available on orders from %s.', 'payflex-payment-gateway'), self::plain_price($limits['minimum']));
         }
 
         if(in_array(self::REASON_ABOVE_MAX, $reasons, true))
         {
-            return sprintf(__('Payflex is available on orders up to %s.', 'woo_payflex'), self::plain_price($limits['maximum']));
+            return sprintf(__('Payflex is available on orders up to %s.', 'payflex-payment-gateway'), self::plain_price($limits['maximum']));
         }
 
-        return __('Payflex is not available for this order.', 'woo_payflex');
+        return __('Payflex is not available for this order.', 'payflex-payment-gateway');
     }
 
     /**

@@ -46,7 +46,7 @@ final class Payflex_Admin_Products
     {
         if(!self::enabled()) return $columns;
 
-        $columns[self::COLUMN] = __('Payflex Individually Excluded', 'woo_payflex');
+        $columns[self::COLUMN] = __('Payflex Individually Excluded', 'payflex-payment-gateway');
 
         return $columns;
     }
@@ -75,7 +75,7 @@ final class Payflex_Admin_Products
 
         $excluded = get_post_meta($post_id, Payflex_Eligibility::PRODUCT_META, true) === 'yes';
 
-        echo $excluded ? esc_html__('Excluded', 'woo_payflex') : '&mdash;';
+        echo $excluded ? esc_html__('Excluded', 'payflex-payment-gateway') : '&mdash;';
     }
 
     /**
@@ -89,9 +89,9 @@ final class Payflex_Admin_Products
         $current = self::requested_filter();
 
         $options = [
-            ''    => __('All Payflex statuses', 'woo_payflex'),
-            'yes' => __('Excluded from Payflex', 'woo_payflex'),
-            'no'  => __('Not excluded from Payflex', 'woo_payflex'),
+            ''    => __('All Payflex statuses', 'payflex-payment-gateway'),
+            'yes' => __('Excluded from Payflex', 'payflex-payment-gateway'),
+            'no'  => __('Not excluded from Payflex', 'payflex-payment-gateway'),
         ];
 
         echo '<select name="' . esc_attr(self::COLUMN) . '">';
