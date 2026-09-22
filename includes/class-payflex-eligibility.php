@@ -284,6 +284,7 @@ final class Payflex_Eligibility
         if(!empty($items))
         {
             return sprintf(
+                /* translators: %s: comma separated list of product names that block Payflex. */
                 __('Payflex is not available with %s. Remove it to pay with Payflex.', 'payflex-payment-gateway'),
                 implode(', ', array_column($items, 'name'))
             );
@@ -293,11 +294,13 @@ final class Payflex_Eligibility
 
         if(in_array(self::REASON_BELOW_MIN, $reasons, true))
         {
+            /* translators: %s: minimum order total Payflex is available from. */
             return sprintf(__('Payflex is available on orders from %s.', 'payflex-payment-gateway'), self::plain_price($limits['minimum']));
         }
 
         if(in_array(self::REASON_ABOVE_MAX, $reasons, true))
         {
+            /* translators: %s: maximum order total Payflex is available up to. */
             return sprintf(__('Payflex is available on orders up to %s.', 'payflex-payment-gateway'), self::plain_price($limits['maximum']));
         }
 

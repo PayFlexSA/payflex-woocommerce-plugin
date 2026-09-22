@@ -272,6 +272,7 @@ trait WC_Gateway_Payflex_Form_Fields
         if(!$count) return $this->exclusion_count_badge(__('No products are currently excluded', 'payflex-payment-gateway'), '', true);
 
         $label = sprintf(
+            /* translators: %d: number of excluded products. */
             _n('%d product currently excluded', '%d products currently excluded', $count, 'payflex-payment-gateway'),
             $count
         );
@@ -297,6 +298,7 @@ trait WC_Gateway_Payflex_Form_Fields
         if(!$count) return $this->exclusion_count_badge(__('No products currently sit in these categories', 'payflex-payment-gateway'), '', true);
 
         $label = sprintf(
+            /* translators: %d: number of excluded products. */
             _n('%d product currently excluded', '%d products currently excluded', $count, 'payflex-payment-gateway'),
             $count
         );
